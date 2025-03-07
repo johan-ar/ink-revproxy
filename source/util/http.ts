@@ -1,6 +1,6 @@
 import http from 'node:http';
 import https from 'node:https';
-import {runtime} from '../store.js';
+import {appStore} from '../store.js';
 
 //@ts-ignore
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -17,7 +17,7 @@ function patch(http: any) {
 					? [arg0, arg1, arg2]
 					: [undefined, arg0, arg1];
 
-			const cookie = runtime.getCookie();
+			const cookie = appStore.selectedEnv().state.cookie || [];
 
 			options.headers = {
 				...options.headers,

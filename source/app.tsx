@@ -1,16 +1,15 @@
 import React from 'react';
-import {FetchInspector} from './FetchInspecton.js';
+import {FetchInspector} from './FetchInspector.js';
 import {Route, Router, useHistory} from './Router.js';
-import {runtime} from './store.js';
-import {useShortcut} from './util/keycode.js';
-import {useObservable} from './util/observable.js';
+import {appStore} from './store.js';
+import {useShortcut} from './util/Shortcut.js';
+import {unmount} from './util/unmountEmitter.js';
 import WebSocketInspector from './WebSocketInspector.js';
 
 const websocketPath = '/inspector/websocket';
 const fetchPath = '/inspector/fetch';
 
 export default function App() {
-	useObservable(runtime);
 	const history = useHistory();
 
 	useShortcut('-', () => {
@@ -18,10 +17,15 @@ export default function App() {
 			? history.go(websocketPath)
 			: history.go(fetchPath);
 	});
+	useShortcut([{ctrl: true}, 'c'], () => unmount.dispatch());
+	useShortcut('q', () => unmount.dispatch());
 
 	return (
 		<>
-			<Router initialPath={websocketPath}>
+			<Router
+				initialPath={appStore.get().route.currentPath || fetchPath}
+				onChange={path => appStore.merge({route: {currentPath: path}})}
+			>
 				<Route path={fetchPath}>
 					<FetchInspector />
 				</Route>

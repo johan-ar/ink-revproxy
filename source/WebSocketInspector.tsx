@@ -1,8 +1,11 @@
 import {Box} from 'ink';
 import React from 'react';
 import Text from './Text.js';
+import Divider from './util/Divider.js';
+import {formatJSON} from './util/formatJSON.js';
 import {wsLogger} from './util/logger.js';
 import {useObservable} from './util/observable.js';
+import {StompParser} from './util/stompParser.js';
 import useStdoutDimensions from './util/useStdoutDimensions.js';
 
 type WebSocketInspectorProps = {};
@@ -14,17 +17,51 @@ const ReadyState: Record<string | number, string> = {
 	3: 'Closed',
 };
 
+const parser = new StompParser();
+
 const WebSocketInspector: React.FC<WebSocketInspectorProps> = ({}) => {
 	const log = useObservable(wsLogger);
-	const [cols, rows] = useStdoutDimensions();
+	const [cols] = useStdoutDimensions();
 
 	return (
 		<>
 			{log.map(item => (
-				<Box key={item.key} width={cols} height={rows}>
+				<Box
+					flexDirection="column"
+					key={item.key}
+					width={cols}
+					marginBottom={1}
+				>
+					<Divider />
 					{item.type === 'stomp/frame' ? (
-						<Box gap={1}>
-							<Text>{item.command}</Text>
+						<Box flexDirection="column" marginTop={1}>
+							<Text bold color="magentaBright">
+								{item.command}
+							</Text>
+							<Box flexDirection="column">
+								{item.headers.map(([key, value], i) => (
+									<Box key={i} flexWrap="nowrap" marginRight={1}>
+										<Text wrap="end">
+											<Text bold color="blueBright">
+												{key}:{' '}
+											</Text>
+											<Text wrap="wrap">{value?.toString()}</Text>
+										</Text>
+									</Box>
+								))}
+							</Box>
+							{item.body && (
+								<>
+									{item.headers.find(
+										([key, value]) =>
+											key === 'content-type' && value === 'application/json',
+									) ? (
+										<Text>{formatJSON(parser.decodeText(item.body))}</Text>
+									) : (
+										<Text>{parser.decodeText(item.body)}</Text>
+									)}
+								</>
+							)}
 						</Box>
 					) : item.type === 'readyState' ? (
 						<>

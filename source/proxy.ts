@@ -1,19 +1,16 @@
 import express from 'express';
 import fs from 'node:fs';
-import process from 'node:process';
 import SockjsServer from 'sockjs';
 import SockjsClient from 'sockjs-client';
-import config from './config.js';
-import {runtime} from './store.js';
+import appConfig from './config.js';
+import {appStore} from './store.js';
 import protocol from './util/http.js';
-import createLogger, {wsLogger} from './util/logger.js';
+import {browserLogger, wsLogger} from './util/logger.js';
 import noop from './util/noop.js';
 import {StompParser} from './util/stompParser.js';
 import timeout from './util/timeout.js';
 
 const {http, https} = protocol;
-
-export const browserLogger = createLogger();
 
 export function createProxy() {
 	const app = express();
@@ -30,32 +27,31 @@ export function createProxy() {
 		.on('error', error => {
 			console.log(error);
 		})
-		.listen(config.server.httpPort);
+		.listen(appConfig.server.httpPort);
 	httpsServer
 		.on('error', error => {
 			console.log(error);
 		})
-		.listen(config.server.httpsPort);
+		.listen(appConfig.server.httpsPort);
 	const close = () => {
 		httpServer.close();
 		httpServer.closeAllConnections();
 		httpsServer.close();
 		httpsServer.closeAllConnections();
 	};
-	process.on('beforeExit', close);
-	process.on('SIGTERM', close);
 	//#endregion
 
 	//#region WEBSOCKET
-	let wsBrowserServer;
-	runtime
-		.envSelected()
-		.routesEntries.filter(([_, route]) => route.type === 'websocket')
+	const wsBrowserServers: SockjsServer.Server[] = [];
+	appStore
+		.selectedEnv()
+		.config.routesEntries.filter(([_, route]) => route.type === 'websocket')
 		.forEach(([prefixBrowser, route]) => {
-			wsBrowserServer = SockjsServer.createServer({
+			const wsBrowserServer = SockjsServer.createServer({
 				prefix: prefixBrowser,
 				log: noop,
 			});
+			wsBrowserServers.push(wsBrowserServer);
 			wsBrowserServer.installHandlers(httpServer, {prefix: prefixBrowser});
 			wsBrowserServer.installHandlers(httpsServer, {prefix: prefixBrowser});
 			wsBrowserServer.on('connection', wsBrowserClient => {
@@ -69,8 +65,7 @@ export function createProxy() {
 					wsLogger.logStompFrame({frame, outgoing: true});
 				});
 				try {
-					const wsBackendClient = new SockjsClient(route.url, undefined);
-
+					const wsBackendClient = new SockjsClient(route.url);
 					wsBackendClient.onmessage = ev => {
 						const message = ev.data;
 						wsBrowserClient.write(message);
@@ -98,7 +93,12 @@ export function createProxy() {
 							buffer.push(message);
 						}
 					});
-
+					// wsBrowserClient.on('close', (code: any, reason: any) => {
+					// 	wsBackendClient.close(code, reason);
+					// });
+					wsBrowserClient.on('error', (code: any, reason: any) => {
+						wsBackendClient.close(code, reason);
+					});
 					wsBackendClient.onopen = _ev => {
 						// console.log('backend open', ev);
 						wsBrowserClient.on('close', (code: any, reason: any) => {
@@ -117,7 +117,7 @@ export function createProxy() {
 		});
 	//#endregion
 
-	const root = runtime.envSelected().routes['/']!;
+	const root = appStore.selectedEnv().config.routes['/'];
 
 	//#region HTTP
 	app.all('/*', async (browserReq, browserRes) => {
@@ -127,24 +127,15 @@ export function createProxy() {
 		browserRes.on('error', err => {
 			console.error(err);
 		});
-		const [prefix, route] = runtime
-			.envSelected()
-			.routesEntries.findLast(([pathname]) =>
+		const [prefix, routeConfig] = appStore
+			.selectedEnv()
+			.config.routesEntries.findLast(([pathname]) =>
 				browserReq.originalUrl.startsWith(pathname),
 			) || ['/', root];
 
 		const pathname =
 			browserReq.originalUrl.replace(new RegExp(`^${prefix}`), '') || '/';
-		const backendUrl = new URL(pathname, route.url);
-
-		// console.log(
-		// 	'browserReq',
-		// 	browserReq.originalUrl,
-		// 	prefix,
-		// 	browserUrl,
-		// 	backendUrl,
-		// 	route.url,
-		// );
+		const backendUrl = new URL(pathname, routeConfig.url);
 
 		const log = browserLogger.logFetch(browserRes, backendUrl.toString());
 
@@ -154,36 +145,54 @@ export function createProxy() {
 			.request(
 				backendUrl,
 				{
-					headers: browserReq.headers,
+					headers: {...browserReq.headers, cache: 'no-cache'},
 					method: browserReq.method,
 					checkServerIdentity: () => undefined,
 				},
 				backendRes => {
 					if ('set-cookie' in backendRes.headers) {
-						runtime.setCookie(backendRes.headers['set-cookie']);
+						appStore
+							.selectedEnv()
+							.state.setCookie(backendRes.headers['set-cookie']);
 					}
-
 					Object.entries(backendRes.headers).forEach(([key, value]) => {
 						if (value !== undefined && value !== null)
 							browserRes.setHeader(key, value);
 					});
-
 					const browserOrigin = browserReq.headers['origin'];
+
+					browserRes.setHeader('cache-control', 'no-cache');
 					browserRes.setHeader('access-control-allow-credentials', 'true');
-
-					if (browserOrigin)
+					if (browserOrigin) {
 						browserRes.setHeader('access-control-allow-origin', browserOrigin);
-					if (backendRes.statusCode) browserRes.status(backendRes.statusCode);
-					if (backendRes.statusMessage)
+					}
+					if (backendRes.statusCode) {
+						browserRes.status(backendRes.statusCode);
+					}
+					if (backendRes.statusMessage) {
 						browserRes.statusMessage = backendRes.statusMessage;
-
+					}
+					// const buffer = Buffer.alloc(
+					// 	Number(backendRes.headers['content-length'] || 0),
+					// );
 					backendRes
 						.on('data', chunk => {
 							browserRes.write(chunk);
-							console.log(chunk);
+							// buffer.write(
+							// 	chunk,
+							// 	(backendRes.headers['content-encoding'] ||
+							// 		'utf-8') as BufferEncoding,
+							// );
 							log.resBody.append(chunk);
 						})
 						.on('end', () => {
+							// if (backendRes.headers['content-type'] === 'application/json') {
+							// 	try {
+							// 		routeConfig.transformResponse?.(buffer.toJSON())
+							// 	} catch (e) {
+							// 		console.log('transform fail', e)
+							// 	}
+							// }
 							browserRes.end();
 						})
 						.on('error', () => {
@@ -192,9 +201,9 @@ export function createProxy() {
 				},
 			)
 			.setHeader('host', backendUrl.host)
-			.setHeader('origin', runtime.envSelected().origin)
-			.setHeader('referer', runtime.envSelected().origin)
-			.setHeader('cookie', runtime.getCookie())
+			.setHeader('origin', appStore.selectedEnv().config.origin)
+			.setHeader('referer', appStore.selectedEnv().config.origin)
+			.setHeader('cookie', appStore.selectedEnv().state.cookie)
 			.on('error', err => {
 				browserRes.sendStatus(500);
 				console.log(err);
@@ -214,7 +223,10 @@ export function createProxy() {
 	//#endregion
 
 	return {
+		init() {},
 		app,
+		wsBrowserServers,
+		close,
 	};
 }
 

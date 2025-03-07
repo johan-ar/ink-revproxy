@@ -1,22 +1,15 @@
 {
-  "preferences": {
-    "envSelected": "development"
-  },
-  "runtime": {
-    "production": {
-      "cookie": [
-        "SESSION=ZTY3NTY0ZjctMWY5ZS00MjE0LThhNDEtMjYyMjRlZTg2ODk2; Max-Age=604800; Expires=Wed, 25 Dec 2024 15:00:30 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
-      ]
-    },
-    "testing": {
-      "cookie": [
-        "SESSION=ZTVmYjAxZTgtY2E4OC00M2FjLWFjMzUtM2YxMjQ4MjZhMWFj; Max-Age=604800; Expires=Fri, 21 Feb 2025 18:52:24 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
-      ]
-    },
-    "development": {
-      "cookie": [
-        "SESSION=NDExZDk4ZTEtYTQwMi00MTQ0LWE5ZDctNTYzMTBjYjYzNGM5; Max-Age=604800; Expires=Fri, 21 Feb 2025 19:01:32 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
-      ]
+  "env": {
+    "selected": "production",
+    "state": {
+      "testing": {
+        "cookie": [
+          "SESSION=ZTM2NjcxOGItZDM1Mi00MTZkLThlYmYtMzMyNDVlZmE1ZjM3; Max-Age=604800; Expires=Thu, 13 Mar 2025 15:52:13 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
+        ]
+      }
     }
+  },
+  "route": {
+    "currentPath": "/inspector/fetch"
   }
 }

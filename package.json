@@ -20,6 +20,7 @@
 		"@types/sockjs": "^0.3.36",
 		"@types/sockjs-client": "^1.5.4",
 		"express": "^4.18.2",
+		"immer": "^10.1.1",
 		"ink": "^4.1.0",
 		"ink-divider": "^3.0.0",
 		"ink-select-input": "^5.0.0",

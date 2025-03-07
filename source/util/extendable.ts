@@ -11,15 +11,15 @@ export type Extendable<T> = T & {
 };
 
 export function extendImpl(target: any, plugin: (self: any) => any): any {
-	const obj = plugin(target) ?? {};
-	for (const key in obj) {
-		if (Object.hasOwn(obj, key))
+	const extension = plugin(target) ?? {};
+	for (const key in extension)
+		if (Object.hasOwn(extension, key))
 			Object.defineProperty(target, key, {
 				configurable: true,
 				enumerable: true,
 				writable: true,
-				value: obj[key],
+				value: extension[key],
 			});
-	}
+
 	return target;
 }

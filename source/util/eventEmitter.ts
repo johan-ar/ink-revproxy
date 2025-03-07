@@ -9,6 +9,7 @@ export interface EventEmitter<T = void> {
 	(value: T): void;
 	dispatch: (value: T) => void;
 	subscribe: (run: Subscriber<T>) => Unsubscriber;
+	Type: T;
 }
 
 export type EventEmitterExtendable<T = unknown> = Extendable<EventEmitter<T>>;
@@ -40,7 +41,6 @@ export const eventEmitter = <T = void>(
 	const subscribe = (run: Subscriber<T>): Unsubscriber => {
 		const unsubscriber = () => {
 			subscribers.delete(run);
-
 			if (subscribers.size === 0) stop?.();
 		};
 

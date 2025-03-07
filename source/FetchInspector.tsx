@@ -4,26 +4,27 @@ import _ from 'lodash';
 import mime from 'mime';
 import React, {useEffect, useMemo, useState} from 'react';
 import FetchPreview from './FetchView.js';
-import {browserLogger} from './proxy.js';
-import Shortcut from './Shortcut.js';
 import StatusCode from './StatusCode.js';
-import {runtime} from './store.js';
 import Text, {TextProps} from './Text.js';
+import Menu, {VirtualListItemComponentProps} from './VirtualList.js';
+import {appStore} from './store.js';
 import Divider from './util/Divider.js';
-import {useShortcut} from './util/keycode.js';
-import {LogRecord} from './util/logger.js';
+import Shortcut, {useShortcut} from './util/Shortcut.js';
+import {LogRecord, browserLogger} from './util/logger.js';
 import {useObservable} from './util/observable.js';
 import useResponsePending from './util/useResponsePending.js';
 import useStdoutDimensions from './util/useStdoutDimensions.js';
-import Menu, {VirtualListItemComponentProps} from './VirtualList.js';
 
 export const FetchInspector = () => {
 	const [cols, rows] = useStdoutDimensions();
 	const log = useObservable(browserLogger);
 	const [selected, setSelected] = useState(log[0]);
 	const [followOutputActive, setFollowOutputActive] = useState(true);
-	const envShortcut = useShortcut('e', () => runtime.nextEnv());
-	// const r = useResponsive();
+	const envShortcut = useShortcut('e', () => appStore.nextEnv());
+	const clearShortcut = useShortcut('c', () => {
+		browserLogger.clear();
+		setSelected(undefined);
+	});
 
 	const items = useMemo(() => {
 		return log
@@ -62,6 +63,7 @@ export const FetchInspector = () => {
 						active: followOutputActive,
 						setActive: setFollowOutputActive,
 					}}
+					footer={<Shortcut {...clearShortcut}>Clear</Shortcut>}
 				/>
 				<Box width={cols - 52}>
 					{selected && <FetchPreview record={selected} />}
@@ -71,13 +73,13 @@ export const FetchInspector = () => {
 				<Text>
 					Listen
 					<Text ml={1} color="cyanBright" underline>
-						http://localhost https://localhost
+						https://mac.local
 					</Text>
 				</Text>
 				<Shortcut {...envShortcut}>
 					Env:
 					<Text color="blueBright">
-						{_.capitalize(runtime.envSelected().env)}
+						{_.capitalize(appStore.selectedEnv().selected)}
 					</Text>
 				</Shortcut>
 			</Box>
@@ -142,7 +144,7 @@ const Item: React.FC<ItemProps> = ({value, isSelected}) => {
 				</Text>
 			</Box>
 			<Box flexShrink={1} flexGrow={1} overflowX="hidden">
-				<Text {...style} pl={2} pr={1} wrap="truncate-start">
+				<Text {...style} pl={2} pr={2} wrap="truncate-start">
 					{decodeURIComponent(value.url)}
 				</Text>
 				<Text color={style.bgColor}>{isSelected ? '\ue0b0' : ' '}</Text>

@@ -1,4 +1,7 @@
-import {useEffect, useState} from 'react';
+import {createDraft, isDraftable, Objectish, produce} from 'immer';
+import _ from 'lodash';
+import {useEffect, useRef} from 'react';
+import {Partial} from 'ts-toolbelt/out/Object/Partial.js';
 import {
 	eventEmitter,
 	type Stop,
@@ -8,6 +11,7 @@ import {
 import {extendImpl, type Extendable} from './extendable.js';
 import useRerender from './useRerender.js';
 export type {Stop, Subscriber, Unsubscriber};
+// enableMapSet();
 
 export interface Readable<T = unknown> {
 	/**
@@ -24,11 +28,11 @@ export interface Readable<T = unknown> {
 	 * @returns the current value
 	 */
 	when: (predicate: (value: T) => boolean) => Promise<T>;
+	Type: T;
 }
 export type ReadableExtendable<T = unknown> = Extendable<Readable<T>>;
 
-export interface Writable<T = unknown> extends Omit<Readable<T>, 'extend'> {
-	set: (value: T) => void;
+export interface Writable<T = unknown> extends Readable<T> {
 	update: (fn: Updater<T>) => void;
 }
 export type WritableExtendable<T = unknown> = Extendable<Writable<T>>;
@@ -42,8 +46,8 @@ export const strictEquals = <T>(currentValue: T, nextValue: T) =>
  * Start and Stop callback lifecycle of the `Writable` or `Readable` observable
  */
 export type StartStopNotifier<T> = (
-	set: (value: T) => void,
 	update: (fn: Updater<T>) => void,
+	get: () => T,
 ) => void | Stop;
 
 export type Updater<T> = (value: T) => T;
@@ -59,22 +63,30 @@ export type Updater<T> = (value: T) => T;
 export const writable = <T>(
 	initialValue: T,
 	start?: StartStopNotifier<T>,
-	equalFn: EqualFn<T> = strictEquals,
 ): WritableExtendable<T> => {
 	let currentValue = initialValue;
 
-	const emitter = eventEmitter<T>(() => start?.(set, update));
+	const emitter = eventEmitter<T>(() => start?.(update, get));
 
-	const get = () => currentValue;
+	const get = isDraftable(currentValue)
+		? () => createDraft(currentValue as Objectish) as T
+		: (): T => currentValue;
 
-	const set = (nextValue: T) => {
-		if (!equalFn(currentValue, nextValue)) {
-			currentValue = nextValue;
-			emitter(currentValue);
-		}
-	};
-
-	const update = (fn: Updater<T>) => set(fn(currentValue));
+	const update = isDraftable(currentValue)
+		? (fn: Updater<T>) => {
+				const nextValue = produce(currentValue, fn);
+				if (currentValue !== nextValue) {
+					currentValue = nextValue;
+					emitter(currentValue);
+				}
+		  }
+		: (fn: Updater<T>) => {
+				const nextValue = fn(currentValue);
+				if (currentValue !== nextValue) {
+					currentValue = nextValue;
+					emitter(currentValue);
+				}
+		  };
 
 	const subscribe = (run: Subscriber<T>): Unsubscriber => {
 		const unsubscriber = emitter.subscribe(run);
@@ -98,11 +110,11 @@ export const writable = <T>(
 		extend(plugin) {
 			return extendImpl(this, plugin);
 		},
-		set,
 		get,
 		update,
 		subscribe,
 		when,
+		Type: true as T,
 	};
 };
 
@@ -117,8 +129,7 @@ export const writable = <T>(
 export const readable = <T>(
 	initialValue: T,
 	start?: StartStopNotifier<T>,
-	equalFn: EqualFn<T> = strictEquals,
-): ReadableExtendable<T> => writable(initialValue, start, equalFn);
+): ReadableExtendable<T> => writable(initialValue, start);
 
 export type AsReadable<T> = T extends Writable<infer U>
 	? Readable<U> & Omit<T, keyof Writable<T>>
@@ -127,17 +138,26 @@ export type AsReadable<T> = T extends Writable<infer U>
 export const asReadable = <T>(store: T) => store as AsReadable<T>;
 
 export const useObservable = <T extends Readable<any>>(observable: T) => {
-	const [state, setState] = useState<ReturnType<T['get']>>(observable.get);
+	const ref = useRef<ReturnType<T['get']>>();
+	ref.current ??= observable.get();
+
 	const rerender = useRerender();
 
 	useEffect(
 		() =>
 			observable.subscribe($value => {
-				setState($value);
+				ref.current = $value;
 				rerender();
 			}),
 		[observable],
 	);
 
-	return state;
+	return ref.current!;
 };
+
+export function mergePlugin<T extends object>(observable: Writable<T>) {
+	return {
+		merge: (partial: Partial<T, 'deep'>) =>
+			observable.update($store => _.merge($store, partial)),
+	};
+}

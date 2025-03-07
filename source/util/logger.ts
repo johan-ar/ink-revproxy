@@ -1,4 +1,6 @@
 import {Request, Response} from 'express';
+import {Console} from 'node:console';
+import fs from 'node:fs';
 import {O} from 'ts-toolbelt';
 import {nextKey} from './nextKey.js';
 import {writable} from './observable.js';
@@ -36,54 +38,66 @@ const isPreflight = (req: Request) =>
 
 const createLogger = () => {
 	const prefligths: LogRecord[] = [];
+	let clearTimeout: NodeJS.Timeout | undefined;
 
-	const httpLogger = writable<LogRecord[]>([], undefined, () => false).extend(
-		self => ({
-			logFetch(res: Response, url: string) {
-				const record: LogRecord = {
-					type: 'fetch',
-					key: nextKey(),
-					t: Date.now(),
-					url,
-					req: res.req,
-					res: res,
-					reqBody: body(),
-					resBody: body(),
-				};
+	const httpLogger = writable<LogRecord[]>([], undefined).extend(self => ({
+		logFetch(res: Response, url: string) {
+			const record: LogRecord = {
+				type: 'fetch',
+				key: nextKey(),
+				t: Date.now(),
+				url,
+				req: res.req,
+				res: res,
+				reqBody: body(),
+				resBody: body(),
+			};
 
-				if (isPreflight(record.req)) {
-					prefligths.push(record);
-					self.update($data => ($data.push(record), $data));
-				} else {
-					const prefIndex = prefligths.findIndex(
-						pref =>
-							pref.req.url === record.req.url &&
-							pref.req.headers['access-control-request-method'] ===
-								record.req.method,
+			if (isPreflight(record.req)) {
+				prefligths.push(record);
+				self.update($data => ($data.push(record), $data));
+			} else {
+				const prefIndex = prefligths.findIndex(
+					pref =>
+						pref.req.url === record.req.url &&
+						pref.req.headers['access-control-request-method'] ===
+							record.req.method,
+				);
+				if (prefIndex !== -1) {
+					record.preflight = prefligths.splice(prefIndex, 1)[0]!;
+					record.key = record.preflight.key;
+					self.update(
+						$data => (
+							$data.findReplace(({key}) => key === record.key, record), $data
+						),
 					);
-					if (prefIndex !== -1) {
-						record.preflight = prefligths.splice(prefIndex, 1)[0]!;
-						record.key = record.preflight.key;
-						self.update(
-							$data => (
-								$data.findReplace(({key}) => key === record.key, record), $data
-							),
-						);
-					} else {
-						self.update($data => ($data.push(record), $data));
-					}
+				} else {
+					self.update($data => ($data.push(record), $data));
 				}
-				self.update($data => $data.slice($data.length - 120, $data.length));
+			}
+			self.update($data => $data.slice($data.length - 120, $data.length));
 
-				return record;
-			},
-		}),
-	);
+			return record;
+		},
+		clear() {
+			if (clearTimeout) return;
+			clearTimeout = setInterval(() => {
+				self.update($data => {
+					$data.shift();
+					if (!$data.length)
+						clearTimeout = (clearInterval(clearTimeout), undefined);
+					return $data;
+				});
+			}, 5);
+		},
+	}));
 
 	return httpLogger;
 };
 
 export default createLogger;
+
+export const browserLogger = createLogger();
 
 type WSRecord = Key &
 	Direction &
@@ -112,7 +126,7 @@ type WSRecord = Key &
 type Direction = {incoming?: boolean; outgoing?: boolean};
 type Key = {key: string; t: number};
 
-export const wsLogger = writable<WSRecord[]>([], undefined, () => false)
+export const wsLogger = writable<WSRecord[]>([], undefined)
 	.extend(self => ({
 		push(record: O.Optional<WSRecord, keyof Key>) {
 			record.t = Date.now();
@@ -161,3 +175,7 @@ export const wsLogger = writable<WSRecord[]>([], undefined, () => false)
 			});
 		},
 	}));
+
+export const logger = new Console({
+	stdout: fs.createWriteStream('./log.txt', {encoding: 'utf-8'}),
+});

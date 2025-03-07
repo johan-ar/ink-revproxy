@@ -1,4 +1,4 @@
-import React, {createContext, useContext} from 'react';
+import React, {createContext, useContext, useEffect} from 'react';
 import clearOutput from './util/clearOutput.js';
 import {asReadable, useObservable, writable} from './util/observable.js';
 
@@ -20,7 +20,6 @@ export const createHistory = () => {
 	const history = writable<HistoryState>(
 		{current: 0, history: [{path: ''}]},
 		undefined,
-		() => false,
 	).extend(self => {
 		const location = <T,>() => {
 			const $state = self.get();
@@ -30,7 +29,11 @@ export const createHistory = () => {
 		return {
 			location,
 			reset(initialLocation: Location) {
-				self.set({current: 0, history: [initialLocation]});
+				self.update($state => {
+					$state.current = 0;
+					$state.history = [initialLocation];
+					return $state;
+				});
 			},
 			go(location: Location<any> | string) {
 				const location_ = toLocation(location);
@@ -75,16 +78,22 @@ export const history = defaultHistory;
 export type RouterPros = React.PropsWithChildren<{
 	initialPath?: string;
 	history?: History;
+	onChange?: (path: string) => void;
 }>;
 
 export const Router: React.FC<RouterPros> = ({
 	history = defaultHistory,
 	children,
 	initialPath = '/',
+	onChange,
 }) => {
 	if (history.get().history[0].path !== initialPath) {
 		history.reset({path: initialPath});
 	}
+
+	useEffect(() => {
+		return history.subscribe(() => onChange?.(history.location().path));
+	}, []);
 
 	return (
 		<HistoryContext.Provider value={history}>

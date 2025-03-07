@@ -1,15 +1,48 @@
-const config = {
+export type AppConfig = {
+	server: {
+		httpPort: string;
+		httpsPort: string;
+	};
+	env: {
+		[env: string]: EnvConfig;
+	};
+};
+
+export type EnvConfig = {
+	origin: string;
+	routes: {
+		'/': RouteConfig;
+		[pathname: string]: RouteConfig;
+	};
+	routesEntries: [pathname: string, config: RouteConfig][];
+};
+type RouteConfig = {
+	type: 'spa' | 'forward' | 'websocket';
+	url: string;
+	transformResponse?(data: any): any;
+};
+
+const appConfig = {
 	server: {
 		httpPort: '80',
 		httpsPort: '443',
 	},
-	envConfig: {
+	env: {
 		development: {
 			origin: 'https://devappm.b2chat.io',
 			routes: {
 				'/': {
 					type: 'spa',
 					url: 'https://mac.local:3000',
+				},
+				'@default/services/user/current': {
+					type: 'forward',
+					url: 'https://devservices.b2chat.io',
+					transformResponse(data: any) {
+						data.employer.trialRemainingDays = 0;
+						data.employer.expired = 0;
+						return data;
+					},
 				},
 				'/@default': {
 					type: 'forward',
@@ -104,30 +137,12 @@ const config = {
 				},
 			},
 		},
-	} as any as Record<string, Env>,
+	},
 };
 
-Object.entries(config.envConfig).forEach(([env, config]) => {
+Object.entries(appConfig.env).forEach(([env, config]: any) => {
 	config.env = env;
-	config.routesEntries = Object.entries(config.routes);
+	config.routesEntries = Object.entries(config.routes) as any;
 });
 
-export default config;
-
-export type Env = {
-	env: string;
-	origin: string;
-	routes: {
-		[pathname in string]: {
-			type: 'spa' | 'forward' | 'websocket';
-			url: string;
-		};
-	};
-	routesEntries: [
-		pathname: string,
-		config: {
-			type: 'spa' | 'forward' | 'websocket';
-			url: string;
-		},
-	][];
-};
+export default appConfig as unknown as AppConfig;

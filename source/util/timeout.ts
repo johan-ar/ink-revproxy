@@ -1,1 +1,2 @@
-export default (time = 0) => new Promise<void>(r => setTimeout(r, time));
+export default <T = true>(time = 0, result: T = true as T) =>
+	new Promise<T>(r => setTimeout(r, time, result));

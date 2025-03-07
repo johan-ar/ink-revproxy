@@ -25,7 +25,7 @@ const COLON = 58;
 
 export class StompParser {
 	private readonly encoder = new TextEncoder();
-	private readonly decoder = new TextDecoder();
+	readonly decoder = new TextDecoder();
 
 	// @ts-ignore - it always has a value
 	private results: IRawFrameType;
@@ -74,6 +74,14 @@ export class StompParser {
 		for (let i = 0; i < chunk.length; i++) {
 			const byte = chunk[i];
 			this.onByte(byte!);
+		}
+	}
+
+	public decodeText(data: Uint8Array) {
+		try {
+			return this.decoder.decode(data);
+		} catch (e) {
+			return data.toString();
 		}
 	}
 

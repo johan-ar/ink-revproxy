@@ -1,0 +1,48 @@
+Writing store {
+  env: { selected: 'development', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}
+Writing store {
+  env: { selected: 'testing', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}
+Writing store {
+  env: { selected: 'testing2', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}
+Writing store {
+  env: { selected: 'production', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}
+Writing store {
+  env: { selected: 'development', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}
+Writing store {
+  env: { selected: 'testing', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}
+Writing store {
+  env: { selected: 'testing2', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}
+Writing store {
+  env: { selected: 'production', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}
+Writing store {
+  env: { selected: 'development', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}
+Writing store {
+  env: { selected: 'testing', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}
+Writing store {
+  env: { selected: 'testing2', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}
+Writing store {
+  env: { selected: 'production', state: { testing: [Object] } },
+  route: { currentPath: '/inspector/fetch' }
+}

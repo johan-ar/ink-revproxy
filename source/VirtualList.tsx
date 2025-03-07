@@ -1,4 +1,4 @@
-import {Box, BoxProps, useInput} from 'ink';
+import {Box, BoxProps} from 'ink';
 import React, {
 	Dispatch,
 	SetStateAction,
@@ -6,10 +6,10 @@ import React, {
 	useMemo,
 	useState,
 } from 'react';
-import Shortcut from './Shortcut.js';
-import VScrollbar from './VScrollbar.js';
-import {KeyCode, keyCodeMatch, useShortcut} from './util/keycode.js';
 import noop from './util/noop.js';
+import Shortcut, {useShortcut} from './util/Shortcut.js';
+import {ShortcutSequence} from './util/shortcutDefinitions.js';
+import VScrollbar from './VScrollbar.js';
 
 export type VirtualListItem<T = any> = {
 	key: string;
@@ -28,14 +28,14 @@ export type MenuProps<T> = {
 	items: VirtualListItem<T>[];
 	ItemComponent: React.FC<VirtualListItemComponentProps<T>>;
 	rows: number;
-	next: KeyCode;
-	prev: KeyCode;
+	next: ShortcutSequence | string;
+	prev: ShortcutSequence | string;
 	followOutput?: {
 		active?: boolean;
 		setActive?: Dispatch<SetStateAction<boolean>>;
 		top?: boolean;
 		bottom?: boolean;
-		toggle?: KeyCode;
+		toggle?: ShortcutSequence | string;
 	};
 	footer?: React.ReactNode;
 } & BoxProps;
@@ -47,7 +47,7 @@ const Menu = <T,>({
 	next,
 	prev,
 	rows,
-	followOutput = {setActive: noop},
+	followOutput = {setActive: noop, toggle: 'f'},
 	footer,
 	...props
 }: MenuProps<T>) => {
@@ -100,29 +100,15 @@ const Menu = <T,>({
 		return {start, currentIndex: index, items: items.slice(start, end)};
 	}, [current.item, items, rows]);
 
-	useInput((input, key) => {
-		if (keyCodeMatch(followOutput.toggle, input, key)) {
-			return followOutput.setActive?.(val => !val);
-		}
-		if (keyCodeMatch(next, input, key)) {
-			return setCurrent(current => moveCurrent(items, current, +1));
-		}
-		if (keyCodeMatch(prev, input, key)) {
-			return setCurrent(current => moveCurrent(items, current, -1));
-		}
-	});
-
 	const nextShortcut = useShortcut(next, () => {
 		setCurrent(current => moveCurrent(items, current, +1));
 		followOutput.setActive?.(false);
 	});
-
 	const prevShortcut = useShortcut(prev, () => {
 		setCurrent(current => moveCurrent(items, current, -1));
 		followOutput.setActive?.(false);
 	});
-
-	const followOutputShortcut = useShortcut(followOutput.toggle, () => {
+	const followOutputShortcut = useShortcut(followOutput.toggle!, () => {
 		followOutput.setActive?.(true);
 	});
 
