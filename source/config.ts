@@ -38,11 +38,6 @@ const appConfig = {
 				'@default/services/user/current': {
 					type: 'forward',
 					url: 'https://devservices.b2chat.io',
-					transformResponse(data: any) {
-						data.employer.trialRemainingDays = 0;
-						data.employer.expired = 0;
-						return data;
-					},
 				},
 				'/@default': {
 					type: 'forward',
@@ -59,6 +54,10 @@ const appConfig = {
 				'/@contacts': {
 					type: 'forward',
 					url: 'https://devcontacts.b2chat.io',
+				},
+				'/sockjs-node': {
+					type: 'websocket',
+					url: 'https://mac.local/sockjs-node',
 				},
 			},
 		},

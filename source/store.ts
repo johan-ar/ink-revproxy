@@ -1,16 +1,16 @@
-import {readFileSync} from 'node:fs';
-import fs from 'node:fs/promises';
-import appConfig from './config.js';
-import {mergePlugin, writable} from './util/observable.js';
+import { readFileSync } from "node:fs";
+import fs from "node:fs/promises";
+import appConfig from "./config.js";
+import { writable } from "./util/writable.js";
 
 export type AppStore = {
-	route: {
+	router: {
 		currentPath: string;
 	};
 	env: {
 		selected: string;
 		state: {
-			[env: string]: {cookie: string[]};
+			[env: string]: { cookie?: string[] };
 		};
 	};
 };
@@ -18,8 +18,8 @@ const initialEnv = Object.keys(appConfig.env)[0]!;
 
 export const appStore = writable<AppStore>(
 	readStore({
-		route: {
-			currentPath: '',
+		router: {
+			currentPath: "",
 		},
 		env: {
 			selected: initialEnv,
@@ -27,54 +27,42 @@ export const appStore = writable<AppStore>(
 		},
 	}),
 )
-	.extend(mergePlugin)
-	.extend(self => ({
+	.extend({
+		config: appConfig,
+	})
+	.extend((self) => ({
 		init() {},
-		get config() {
-			return appConfig;
-		},
-		selectedEnv() {
+		env: () => {
 			const $store = self.get();
 			const selected = $store.env.selected;
 
 			return {
 				selected,
-				config: this.config.env[selected]!,
+				config: self.config.env[selected]!,
 				state: {
-					get cookie(): string[] {
+					get cookie(): readonly string[] {
 						const $store = self.get();
 						return $store.env.state[selected]?.cookie || [];
 					},
-					setCookie(cookie?: null | string | string[]) {
+					set cookie(cookie: null | undefined | string | string[]) {
 						if (!cookie) cookie = [];
-						else if (Array.isArray(cookie)) cookie = cookie;
-						else if (typeof cookie === 'string') cookie = [cookie];
-						else cookie = [];
+						else if (!Array.isArray(cookie)) cookie = [cookie];
 
-						self.merge({
-							env: {
-								state: {
-									[selected]: {
-										cookie: cookie as string[],
-									},
-								},
-							},
+						self.update(($store) => {
+							$store.env.state[selected] ??= {};
+							$store.env.state[selected].cookie = cookie;
 						});
-						return cookie;
 					},
 				},
 			};
 		},
-		selectEnv(env: string) {
-			self.merge({env: {selected: env}});
-		},
-		nextEnv() {
-			const $store = self.get();
-			const envKeys = Object.keys(this.config.env);
-			const index = envKeys.indexOf($store.env.selected);
-			const nextEnv =
-				envKeys[(index + 1) % envKeys.length] || $store.env.selected;
-			this.selectEnv(nextEnv);
+		selectNextEnv: () => {
+			self.update(($store) => {
+				const envs = Object.keys(self.config.env);
+				const index = envs.indexOf($store.env.selected);
+				const nextEnv = envs[(index + 1) % envs.length] || "";
+				$store.env.selected = nextEnv;
+			});
 		},
 	}));
 
@@ -89,7 +77,7 @@ function readStore(defaultValue: AppStore): AppStore {
 }
 async function writeStore(value: AppStore) {
 	try {
-		await fs.writeFile(`./store.json`, JSON.stringify(value, null, '  '));
+		await fs.writeFile(`./store.json`, JSON.stringify(value, null, "  "));
 		return value;
 	} catch {
 		return value;

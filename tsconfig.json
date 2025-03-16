@@ -1,7 +1,18 @@
 {
-	"extends": "@sindresorhus/tsconfig",
 	"compilerOptions": {
-		"outDir": "dist"
+		"allowSyntheticDefaultImports": true,
+		"erasableSyntaxOnly": true,
+		"incremental": true,
+		"jsx": "react",
+		"lib": ["ES2024"],
+		"module": "NodeNext",
+		"moduleDetection": "force",
+		"moduleResolution": "nodenext",
+		"outDir": "dist",
+		"skipLibCheck": true,
+		"strictFunctionTypes": true,
+		"strictNullChecks": true,
+		"target": "ES2024"
 	},
 	"include": ["source"]
 }

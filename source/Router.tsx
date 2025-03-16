@@ -1,10 +1,10 @@
-import React, {createContext, useContext, useEffect} from 'react';
-import clearOutput from './util/clearOutput.js';
-import {asReadable, useObservable, writable} from './util/observable.js';
+import React, { createContext, useContext, useEffect } from "react";
+import clearOutput from "./util/clearOutput.js";
+import { asReadable, useReadable, writable } from "./util/writable.js";
 
 export type Location<T = undefined> = T extends undefined
-	? {path: string}
-	: {path: string; state: T};
+	? { path: string }
+	: { path: string; state: T };
 
 export type HistoryState = {
 	current: number;
@@ -15,12 +15,12 @@ export interface History extends ReturnType<typeof createHistory> {}
 
 export const createHistory = () => {
 	const toLocation = (location: Location<any> | string): Location<any> =>
-		typeof location === 'object' ? location : {path: location};
+		typeof location === "string" ? { path: location } : location;
 
-	const history = writable<HistoryState>(
-		{current: 0, history: [{path: ''}]},
-		undefined,
-	).extend(self => {
+	const history = writable<HistoryState>({
+		current: 0,
+		history: [{ path: "" }],
+	}).extend((self) => {
 		const location = <T,>() => {
 			const $state = self.get();
 			return $state.history[$state.current]! as Location<T>;
@@ -29,40 +29,35 @@ export const createHistory = () => {
 		return {
 			location,
 			reset(initialLocation: Location) {
-				self.update($state => {
+				self.update(($state) => {
 					$state.current = 0;
 					$state.history = [initialLocation];
-					return $state;
 				});
 			},
 			go(location: Location<any> | string) {
 				const location_ = toLocation(location);
-				location_.path = location_.path.split(/[/]+/g).join('/');
-				self.update($state => {
+				location_.path = location_.path.split(/[/]+/g).join("/");
+				self.update(($state) => {
 					$state.history.splice($state.current + 1, Infinity, location_);
 					$state.current = $state.history.length - 1;
-					return $state;
 				});
 			},
 			back() {
-				self.update($state => {
+				self.update(($state) => {
 					$state.current = Math.max($state.current - 1, 0);
-					return $state;
 				});
 			},
 			forward() {
-				self.update($state => {
+				self.update(($state) => {
 					$state.current = Math.min(
 						$state.current + 1,
 						$state.history.length - 1,
 					);
-					return $state;
 				});
 			},
 			match(other: Location | string) {
-				const location_ = toLocation(other);
-				const currentPath = location().path;
-				return location_.path.startsWith(currentPath);
+				const other_ = toLocation(other);
+				return other_.path.startsWith(location().path);
 			},
 		};
 	});
@@ -84,11 +79,11 @@ export type RouterPros = React.PropsWithChildren<{
 export const Router: React.FC<RouterPros> = ({
 	history = defaultHistory,
 	children,
-	initialPath = '/',
+	initialPath = "/",
 	onChange,
 }) => {
 	if (history.get().history[0].path !== initialPath) {
-		history.reset({path: initialPath});
+		history.reset({ path: initialPath });
 	}
 
 	useEffect(() => {
@@ -106,10 +101,10 @@ export type RouteProps = React.PropsWithChildren<{
 	path?: string | string[];
 }>;
 
-export const Route: React.FC<RouteProps> = ({children, path = ''}) => {
-	const location = useHistory<null>();
+export const Route: React.FC<RouteProps> = ({ children, path = "" }) => {
+	const history = useHistory<null>();
 	const paths = Array.isArray(path) ? path : [path];
-	const matched = paths.some(path => location.match({path}));
+	const matched = paths.some((path) => history.match({ path }));
 
 	return <>{matched ? children : null}</>;
 };
@@ -118,10 +113,10 @@ const HistoryContext = createContext(defaultHistory);
 
 export const useHistory = <T = any,>() => {
 	const history = useContext(HistoryContext);
-	useObservable(history);
+	const state = useReadable(history);
 
 	return {
+		...state,
 		...history,
-		location: history.location<T>(),
 	};
 };

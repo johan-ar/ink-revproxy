@@ -1,21 +1,21 @@
-import {useStdout} from 'ink';
-import {useEffect, useState} from 'react';
+import { useStdout } from "ink";
+import { useEffect, useState } from "react";
 
 export default function useStdoutDimensions(): [columns: number, rows: number] {
-	const {stdout} = useStdout();
+	const { stdout } = useStdout();
 
 	const [dimensions, setDimensions] = useState<[number, number]>([
 		stdout.columns,
-		stdout.rows - 1,
+		stdout.rows,
 	]);
 
 	useEffect(() => {
-		const handler = () => setDimensions([stdout.columns, stdout.rows - 1]);
+		const handler = () => setDimensions([stdout.columns, stdout.rows]);
 
-		stdout.on('resize', handler);
+		stdout.on("resize", handler);
 
 		return () => {
-			stdout.off('resize', handler);
+			stdout.off("resize", handler);
 		};
 	}, [stdout]);
 

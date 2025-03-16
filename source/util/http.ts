@@ -17,7 +17,7 @@ function patch(http: any) {
 					? [arg0, arg1, arg2]
 					: [undefined, arg0, arg1];
 
-			const cookie = appStore.selectedEnv().state.cookie || [];
+			const cookie = appStore.env().state.cookie || [];
 
 			options.headers = {
 				...options.headers,

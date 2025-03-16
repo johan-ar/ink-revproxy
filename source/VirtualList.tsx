@@ -1,21 +1,24 @@
-import {Box, BoxProps} from 'ink';
+import { Box, BoxProps } from "ink";
 import React, {
-	Dispatch,
-	SetStateAction,
+	ForwardedRef,
+	forwardRef,
 	useEffect,
 	useMemo,
 	useState,
-} from 'react';
-import noop from './util/noop.js';
-import Shortcut, {useShortcut} from './util/Shortcut.js';
-import {ShortcutSequence} from './util/shortcutDefinitions.js';
-import VScrollbar from './VScrollbar.js';
+} from "react";
+import noop from "./util/noop.js";
+import { useShortcut } from "./util/Shortcut.js";
+import { ShortcutSequenceProp } from "./util/shortcutDefinitions.js";
+import VScrollbar from "./VScrollbar.js";
 
-export type VirtualListItem<T = any> = {
-	key: string;
-	value: T;
-	noSelectable?: boolean;
-};
+export type VirtualListItem<T = any> =
+	T extends Record<"key", React.Key>
+		? T & {
+				ListItemProps?: {
+					noSelectable?: boolean;
+				};
+			}
+		: never;
 
 export type VirtualListItemComponentProps<T> = {
 	item: VirtualListItem<T>;
@@ -23,131 +26,156 @@ export type VirtualListItemComponentProps<T> = {
 	selected: boolean;
 };
 
-export type MenuProps<T> = {
-	onChange: (item?: VirtualListItem<T>) => void;
+export type VirtualListProps<T> = {
+	onSelectedChange: (item?: VirtualListItem<T>) => void;
 	items: VirtualListItem<T>[];
+	BodyComponent?: React.FC<BoxProps>;
 	ItemComponent: React.FC<VirtualListItemComponentProps<T>>;
 	rows: number;
-	next: ShortcutSequence | string;
-	prev: ShortcutSequence | string;
-	followOutput?: {
-		active?: boolean;
-		setActive?: Dispatch<SetStateAction<boolean>>;
-		top?: boolean;
-		bottom?: boolean;
-		toggle?: ShortcutSequence | string;
-	};
-	footer?: React.ReactNode;
+	nextShortcut?: ShortcutSequenceProp;
+	prevShortcut?: ShortcutSequenceProp;
+	followOutputAt: "top" | "bottom";
+	followOutputShortcut?: ShortcutSequenceProp;
+	followOutput?: boolean;
+	onFollowOutputChange?: (active: boolean) => void;
 } & BoxProps;
 
-const Menu = <T,>({
-	items: items_,
-	onChange,
-	ItemComponent,
-	next,
-	prev,
-	rows,
-	followOutput = {setActive: noop, toggle: 'f'},
-	footer,
-	...props
-}: MenuProps<T>) => {
-	const [current, setCurrent] = useState<{
-		lastIndex: number;
-		item?: VirtualListItem<T>;
-	}>({lastIndex: -1});
+const VirtualList = forwardRef(
+	(
+		{
+			items: items_,
+			onSelectedChange,
+			ItemComponent,
+			nextShortcut = { upArrow: true },
+			prevShortcut = { downArrow: true },
+			rows,
+			followOutputAt,
+			followOutput,
+			followOutputShortcut,
+			onFollowOutputChange = noop,
+			...props
+		}: VirtualListProps<any>,
+		forwadedRef: ForwardedRef<any>,
+	) => {
+		const [current, setCurrent] = useState<{
+			lastIndex: number;
+			item?: VirtualListItem<any>;
+		}>({ lastIndex: -1 });
 
-	if (followOutput.active) {
-		if (followOutput.top) {
-			current.lastIndex = 0;
-			current.item = items_[0];
-		} else if (followOutput.bottom) {
-			current.lastIndex = items_.length - 1;
-			current.item = items_.at(-1);
-		}
-	}
+		const isControlled = followOutput !== undefined;
 
-	useEffect(() => {
-		onChange(current.item);
-	}, [current.item]);
+		const [followOutputUncontrolled, setFollowOutputUncontrolled] =
+			useState(false);
 
-	const items = useMemo(() => {
-		const {item, lastIndex} = current;
-		if (!item) return items_;
+		const followOutputActive = isControlled
+			? followOutput!
+			: followOutputUncontrolled;
 
-		const currentIndex = fastIndexOf(items_, item, lastIndex);
-		if (currentIndex !== -1) return items_;
+		const setFollowOutputActive = isControlled
+			? onFollowOutputChange
+			: setFollowOutputUncontrolled;
 
-		return items_.concat(item);
-	}, [current.item, items_]);
-
-	const window = useMemo(() => {
-		let index = current.item
-			? fastIndexOf(items, current.item, current.lastIndex)
-			: 0;
-		let start = index - rows / 2;
-		let end = index + rows / 2;
-
-		if (end > items.length) {
-			start = start - (end - items.length);
-			end = items.length;
+		if (followOutputActive) {
+			if (followOutputAt === "top") {
+				current.lastIndex = 0;
+				current.item = items_[0];
+			} /* followOutputAt == 'bottom' */ else {
+				current.lastIndex = items_.length - 1;
+				current.item = items_.at(-1);
+			}
 		}
 
-		if (start < 0) {
-			end = end - start;
-			start = 0;
-		}
+		useEffect(() => {
+			onSelectedChange(current.item);
+		}, [current.item]);
 
-		return {start, currentIndex: index, items: items.slice(start, end)};
-	}, [current.item, items, rows]);
+		const items = useMemo(() => {
+			const { item, lastIndex } = current;
+			if (!item) return items_;
 
-	const nextShortcut = useShortcut(next, () => {
-		setCurrent(current => moveCurrent(items, current, +1));
-		followOutput.setActive?.(false);
-	});
-	const prevShortcut = useShortcut(prev, () => {
-		setCurrent(current => moveCurrent(items, current, -1));
-		followOutput.setActive?.(false);
-	});
-	const followOutputShortcut = useShortcut(followOutput.toggle!, () => {
-		followOutput.setActive?.(true);
-	});
+			const currentIndex = fastIndexOf(items_, item, lastIndex);
+			if (currentIndex !== -1) return items_;
 
-	return (
-		<Box flexDirection="column" {...props} height={rows + 1}>
-			<Box flexWrap="nowrap" width="100%">
-				<VScrollbar
-					height={Math.min(rows, items.length)}
-					top={window.currentIndex}
-					scrollHeight={items.length}
-				/>
-				<Box flexDirection="column" flexWrap="wrap" flexGrow={1} height={rows}>
-					{window.items.map((item, i) => (
-						<ItemComponent
-							key={item.key}
-							item={item}
-							index={window.start + i}
-							selected={item.key === current.item?.key}
-						/>
-					))}
+			return items_.concat(item);
+		}, [current.item, items_]);
+
+		const window = useMemo(() => {
+			let index = current.item
+				? fastIndexOf(items, current.item, current.lastIndex)
+				: 0;
+			let start = index - rows / 2;
+			let end = index + rows / 2;
+
+			if (end > items.length) {
+				start = start - (end - items.length);
+				end = items.length;
+			}
+
+			if (start < 0) {
+				end = end - start;
+				start = 0;
+			}
+
+			return { start, currentIndex: index, items: items.slice(start, end) };
+		}, [current.item, items, rows]);
+
+		const next = () => {
+			setCurrent((current) => moveCurrent(items, current, +1));
+			setFollowOutputActive(false);
+		};
+		const prev = () => {
+			setCurrent((current) => moveCurrent(items, current, -1));
+			setFollowOutputActive(false);
+		};
+
+		useShortcut(nextShortcut, next);
+		useShortcut(prevShortcut, prev);
+		useShortcut(followOutputShortcut, () => setFollowOutputActive(true));
+
+		return (
+			<Box flexDirection="column" {...props} height={rows}>
+				<Box flexWrap="nowrap" width="100%">
+					<VScrollbar
+						height={Math.min(rows, items.length)}
+						top={window.currentIndex}
+						scrollHeight={items.length}
+					/>
+					<Box
+						flexDirection="column"
+						flexWrap="wrap"
+						flexGrow={1}
+						height={rows}
+					>
+						{window.items.map((item, i) => (
+							<ItemComponent
+								key={item.key}
+								item={item}
+								index={window.start + i}
+								selected={item.key === current.item?.key}
+							/>
+						))}
+					</Box>
 				</Box>
+				{/* <Box gap={2} width="100%">
+					<Shortcut {...nextShortcut}>↓</Shortcut>
+					<Shortcut {...prevShortcut}>↑</Shortcut>
+					<Shortcut {...followOutputShortcut} pressed={followOutput.active}>
+						Follow Output
+					</Shortcut>
+					{footer}
+				</Box> */}
 			</Box>
-			<Box gap={2} width="100%">
-				<Shortcut {...nextShortcut}>↓</Shortcut>
-				<Shortcut {...prevShortcut}>↑</Shortcut>
-				<Shortcut {...followOutputShortcut} pressed={followOutput.active}>
-					Follow Output
-				</Shortcut>
-				{footer}
-			</Box>
-		</Box>
-	);
-};
+		);
+	},
+);
 
-export default Menu;
+export default VirtualList as <T>(
+	props: VirtualListProps<T>,
+) => React.JSX.Element;
 
 function moveCurrent<T>(
 	items: VirtualListItem<T>[],
-	current: {item?: VirtualListItem<T>; lastIndex: number},
+	current: { item?: VirtualListItem<T>; lastIndex: number },
 	inc: number,
 ) {
 	current = fixCurrent(items, current);
@@ -158,7 +186,7 @@ function moveCurrent<T>(
 	}
 	current.item = items[current.lastIndex];
 
-	if (items[current.lastIndex]?.noSelectable) {
+	if (items[current.lastIndex]?.ListItemProps?.noSelectable) {
 		return moveCurrent(items, current, inc);
 	}
 
@@ -167,25 +195,25 @@ function moveCurrent<T>(
 
 function fixCurrent<T>(
 	items: VirtualListItem<T>[],
-	current: {lastIndex: number; item?: VirtualListItem<T>},
+	current: { lastIndex: number; item?: VirtualListItem<T> },
 ) {
-	let {lastIndex, item} = current;
-	if (!item) return {lastIndex: -1};
+	let { lastIndex, item } = current;
+	if (!item) return { lastIndex: -1 };
 
 	lastIndex = fastIndexOf(items, item, lastIndex);
 
-	if (lastIndex === -1) return {lastIndex: -1};
+	if (lastIndex === -1) return { lastIndex: -1 };
 
-	return {lastIndex, item: items[lastIndex]};
+	return { lastIndex, item: items[lastIndex] };
 }
 
-function fastIndexOf<T extends {key: string}>(
+function fastIndexOf<T extends { key: React.Key }>(
 	array: T[],
 	item: T,
 	hintIndex: number,
 ) {
 	if (hintIndex === -1) hintIndex = array.length / 2;
-	const {key} = item;
+	const { key } = item;
 
 	for (let i = 0; i < Math.max(hintIndex, array.length - hintIndex); i++) {
 		if (key === array[hintIndex + i]?.key) {

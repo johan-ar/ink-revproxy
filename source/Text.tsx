@@ -1,10 +1,8 @@
-import {Text as InkText, TextProps as InkTextProps} from 'ink';
-import React from 'react';
+import { Text as InkText, type TextProps as InkTextProps } from "ink";
+import React from "react";
 
 export type TextProps = InkTextProps & {
-	[key in `${'p' | 'm'}${'l' | 'r' | ''}`]?: number;
-} & {
-	bgColor?: InkTextProps['backgroundColor'];
+	[key in `${"p" | "m"}${"l" | "r" | ""}`]?: number;
 };
 
 const Text: React.FC<TextProps> = ({
@@ -14,7 +12,6 @@ const Text: React.FC<TextProps> = ({
 	m = 0,
 	ml,
 	mr,
-	bgColor,
 	children,
 	...props
 }) => {
@@ -26,7 +23,7 @@ const Text: React.FC<TextProps> = ({
 	return (
 		<>
 			{ml > 0 && <InkText>{sp.repeat(ml)}</InkText>}
-			<InkText {...props} backgroundColor={bgColor}>
+			<InkText {...props}>
 				{sp.repeat(pl)}
 				{children}
 				{sp.repeat(pr)}
@@ -35,6 +32,7 @@ const Text: React.FC<TextProps> = ({
 		</>
 	);
 };
-const sp = ' ';
+
+const sp = " ";
 
 export default Text;

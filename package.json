@@ -1,55 +1,4 @@
 {
-	"name": "ink-revproxy",
-	"version": "0.0.0",
-	"license": "MIT",
-	"bin": "dist/cli.js",
-	"type": "module",
-	"engines": {
-		"node": ">=16"
-	},
-	"scripts": {
-		"build": "tsc",
-		"dev": "tsc --watch",
-		"test": "prettier --check . && xo && ava"
-	},
-	"files": [
-		"dist"
-	],
-	"dependencies": {
-		"@types/express": "^4.17.21",
-		"@types/sockjs": "^0.3.36",
-		"@types/sockjs-client": "^1.5.4",
-		"express": "^4.18.2",
-		"immer": "^10.1.1",
-		"ink": "^4.1.0",
-		"ink-divider": "^3.0.0",
-		"ink-select-input": "^5.0.0",
-		"ink-spinner": "^5.0.0",
-		"lodash": "^4.17.21",
-		"meow": "^11.0.0",
-		"mime": "^4.0.1",
-		"react": "^18.2.0",
-		"sockjs": "^0.3.24",
-		"sockjs-client": "^1.6.1",
-		"ts-toolbelt": "^9.6.0"
-	},
-	"devDependencies": {
-		"@sindresorhus/tsconfig": "^3.0.1",
-		"@types/lodash": "^4.17.6",
-		"@types/react": "^18.0.32",
-		"@vdemedes/prettier-config": "^2.0.1",
-		"ava": "^5.2.0",
-		"babel-cli": "^6.26.0",
-		"chalk": "^5.2.0",
-		"eslint-config-xo-react": "^0.27.0",
-		"eslint-plugin-react": "^7.32.2",
-		"eslint-plugin-react-hooks": "^4.6.0",
-		"ink-testing-library": "^3.0.0",
-		"prettier": "^2.8.7",
-		"ts-node": "^10.9.1",
-		"typescript": "^5.0.3",
-		"xo": "^0.53.1"
-	},
 	"ava": {
 		"extensions": {
 			"ts": "module",
@@ -59,12 +8,61 @@
 			"--loader=ts-node/esm"
 		]
 	},
+	"bin": "dist/cli.js",
+	"dependencies": {
+		"@types/express": "^5.0.0",
+		"@types/sockjs": "^0.3.36",
+		"@types/sockjs-client": "^1.5.4",
+		"express": "^4.21.2",
+		"fast-equals": "^5.2.2",
+		"immer": "^10.1.1",
+		"ink": "^5.1.1",
+		"ink-divider": "^4.1.0",
+		"ink-select-input": "^6.0.0",
+		"ink-spinner": "^5.0.0",
+		"lodash": "^4.17.21",
+		"meow": "^13.2.0",
+		"mime": "^4.0.6",
+		"react": "^18.3.1",
+		"sockjs": "^0.3.24",
+		"sockjs-client": "^1.6.1",
+		"ts-toolbelt": "^9.6.0"
+	},
+	"devDependencies": {
+		"@types/lodash": "^4.17.16",
+		"@types/react": "^19.0.10",
+		"ava": "^6.2.0",
+		"babel-cli": "^6.26.0",
+		"chalk": "^5.4.1",
+		"eslint-config-xo-react": "^0.28.0",
+		"eslint-plugin-react": "^7.37.4",
+		"eslint-plugin-react-hooks": "^5.2.0",
+		"ink-testing-library": "^4.0.0",
+		"prettier": "^3.5.3",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.8.2",
+		"xo": "^0.60.0"
+	},
+	"engines": {
+		"node": ">=16"
+	},
+	"files": [
+		"dist"
+	],
+	"license": "MIT",
+	"name": "ink-revproxy",
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsc --watch",
+		"test": "prettier --check . && xo && ava"
+	},
+	"type": "module",
+	"version": "0.0.0",
 	"xo": {
 		"extends": "xo-react",
 		"prettier": true,
 		"rules": {
 			"react/prop-types": "off"
 		}
-	},
-	"prettier": "@vdemedes/prettier-config"
+	}
 }

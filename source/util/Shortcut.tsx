@@ -1,58 +1,85 @@
-import {useInput} from 'ink';
-import _ from 'lodash';
-import React, {useMemo, useRef, useState} from 'react';
-import Text, {TextProps} from '../Text.js';
-import noop from './noop.js';
+import { useInput } from "ink";
+import _ from "lodash";
+import React, { useEffect, useMemo, useState } from "react";
+import Text, { TextProps } from "../Text.js";
+import { eventEmitter } from "./eventEmitter.js";
+import noop from "./noop.js";
 import {
-	ShortcutSequence,
 	sequenceMatch,
 	sequenceToString,
+	ShortcutSequence,
+	ShortcutSequenceProp,
 	toSequence,
-} from './shortcutDefinitions.js';
+} from "./shortcutDefinitions.js";
+import { useMemoProp } from "./useMemoProp.js";
+import { useTimeout } from "./useTimeout.js";
 
 export type ShortcutProps = {
-	pressedColor?: TextProps['color'];
-	children?: React.ReactNode;
-	sequence: ShortcutSequence | string;
-} & Omit<TextProps, 'children'> &
-	Omit<Partial<UseShortcutResult>, 'sequence'>;
+	sequence: ShortcutSequenceProp;
+	onPressed?: (event: ShortcutSequence) => void;
+	active?: boolean;
+	disabled?: boolean;
+	activeColor?: TextProps["color"];
+	activeBackgroundColor?: TextProps["backgroundColor"];
+} & TextProps;
 
 const Shortcut: React.FC<ShortcutProps> = ({
 	sequence,
-	pressedColor,
+	onPressed = noop,
+	active,
 	disabled,
-	pressed,
+	activeColor,
+	activeBackgroundColor,
 	children,
 	...props
 }) => {
-	const shortcutStr = sequenceToString(toSequence(sequence));
+	const timeout = useTimeout();
+	const [pressed, setPressed] = useState(false);
+	const isActive = pressed || active;
+
+	const seq = useShortcut(
+		sequence,
+		(event) => {
+			setPressed(true);
+			timeout.start(setPressed, 250, false);
+			onPressed(event);
+		},
+		disabled,
+	);
+
 	const text = useMemo(() => {
-		let childrenArray = Array.isArray(children) ? children : [children];
-		let textNodes: string[] = _.takeWhile(childrenArray, _.isString);
-		let nodes: React.ReactNode = childrenArray.slice(textNodes.length);
+		const seqStr = sequenceToString(seq);
+		const childrenArray = Array.isArray(children) ? children : [children];
+		const textNodes: string[] = _.takeWhile(childrenArray, _.isString);
+		const nodes: React.ReactNode = childrenArray.slice(textNodes.length);
 
 		if (textNodes.length) {
-			let text = textNodes.join('');
-			const index = text.toLowerCase().indexOf(shortcutStr.toLowerCase());
+			const text = textNodes.join("");
+			const index = text.toLowerCase().indexOf(seqStr.toLowerCase());
 			if (index !== -1)
 				return [
 					text.slice(0, index),
-					text.slice(index, index + shortcutStr.length),
-					text.slice(index + shortcutStr.length),
+					text.slice(index, index + seqStr.length),
+					text.slice(index + seqStr.length),
 					nodes,
 				];
 		}
-		return ['', shortcutStr, '️:', children];
-	}, [children]);
+		return ["", seqStr, "️:", children];
+	}, [children, seq]);
+
+	const noInverse = Boolean(activeColor || activeBackgroundColor);
 
 	return (
 		<Text
 			{...props}
-			color={pressed ? 'white' : props.color}
-			bgColor={pressed ? 'greenBright' : props.backgroundColor}
+			color={isActive && noInverse ? activeColor : props.color}
+			backgroundColor={
+				isActive && noInverse ? activeBackgroundColor : props.backgroundColor
+			}
+			inverse={noInverse ? false : isActive}
 		>
 			{text[0]}
-			<Text underline bold color={disabled ? undefined : pressedColor}>
+			<Text underline bold color="inherit">
 				{text[1]}
 			</Text>
 			{text[2]}
@@ -63,33 +90,42 @@ const Shortcut: React.FC<ShortcutProps> = ({
 
 export default Shortcut;
 
-export type UseShortcutResult = {
-	sequence: ShortcutSequence;
-	pressed?: boolean;
-	disabled: boolean;
-};
-export const useShortcut = (
-	sequence: ShortcutSequence | string,
-	onPressed: (sequence: ShortcutSequence) => void = noop,
+/**
+ * Handles a shortcut sequence.
+ *
+ * @param sequence The shortcut sequence, given as an array of
+ * InkKey objects or a string that will be split into InkKey
+ * objects.
+ * @param onPressed Called when the shortcut is pressed, given the
+ * InkKey array pressed.
+ * @param disabled If true, the shortcut is not processed.
+ */
+export function useShortcut(
+	sequence?: ShortcutSequenceProp,
+	onPressed: (event: ShortcutSequence) => void = noop,
 	disabled = false,
-): UseShortcutResult => {
-	const [pressed, setPressed] = useState(false);
-	const timeoutRef = useRef<NodeJS.Timeout | undefined>();
+) {
+	const seq = useMemoProp(sequence, toSequence);
 
-	const [key, input] = toSequence(sequence);
-	const sequence_: ShortcutSequence = useMemo(() => [key, input], [key, input]);
+	useEffect(() => {
+		if (disabled) return;
 
-	useInput(
-		(input, key) => {
-			if (sequenceMatch(sequence_, [key, input])) {
-				onPressed?.([key, input]);
-				setPressed(true);
-				clearTimeout(timeoutRef.current);
-				timeoutRef.current = setTimeout(setPressed, 100, false);
-			}
-		},
-		{isActive: !disabled},
-	);
+		return inputEmitter.subscribe((ev) => {
+			if (sequenceMatch(seq, ev)) onPressed(ev);
+		});
+	}, [disabled, seq, onPressed]);
 
-	return {pressed, sequence: sequence_, disabled};
-};
+	return seq;
+}
+
+const inputEmitter = eventEmitter<ShortcutSequence>();
+
+/**
+ * Listens to the current input context and emits input events to
+ * registered shortcut listeners.
+ */
+export function useInputContext() {
+	useInput((input, key) => {
+		inputEmitter([key, input]);
+	});
+}

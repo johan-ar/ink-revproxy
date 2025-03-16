@@ -1,15 +1,25 @@
 {
+  "router": {
+    "currentPath": "/inspector/fetch"
+  },
   "env": {
-    "selected": "production",
+    "selected": "development",
     "state": {
+      "development": {
+        "cookie": [
+          "SESSION=; Max-Age=604800; Expires=Thu, 20 Mar 2025 20:05:30 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
+        ]
+      },
       "testing": {
         "cookie": [
-          "SESSION=ZTM2NjcxOGItZDM1Mi00MTZkLThlYmYtMzMyNDVlZmE1ZjM3; Max-Age=604800; Expires=Thu, 13 Mar 2025 15:52:13 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
+          "SESSION=NzY1MTRmMGItMTJkNi00NzE4LWJkZGQtNmU0MTFlNDBlMmE4; Max-Age=604800; Expires=Thu, 20 Mar 2025 20:09:34 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
+        ]
+      },
+      "testing2": {
+        "cookie": [
+          "SESSION=NjFlNzA2NmYtNzhhZS00OTI5LThjYWMtODVmMWFhYzk4M2E1; Max-Age=604800; Expires=Fri, 21 Mar 2025 14:16:46 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
         ]
       }
     }
-  },
-  "route": {
-    "currentPath": "/inspector/fetch"
   }
 }

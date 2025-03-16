@@ -1,31 +1,31 @@
-import {Box} from 'ink';
-import React from 'react';
-import Text from './Text.js';
-import Divider from './util/Divider.js';
-import {formatJSON} from './util/formatJSON.js';
-import {wsLogger} from './util/logger.js';
-import {useObservable} from './util/observable.js';
-import {StompParser} from './util/stompParser.js';
-import useStdoutDimensions from './util/useStdoutDimensions.js';
+import { Box } from "ink";
+import React from "react";
+import Text from "./Text.js";
+import Divider from "./util/Divider.js";
+import { formatJSON } from "./util/formatJSON.js";
+import { wsLogger } from "./util/logger.js";
+import { StompParser } from "./util/stompParser.js";
+import useStdoutDimensions from "./util/useStdoutDimensions.js";
+import { useReadable } from "./util/writable.js";
 
 type WebSocketInspectorProps = {};
 
 const ReadyState: Record<string | number, string> = {
-	0: 'Connecting',
-	1: 'Open',
-	2: 'Closing',
-	3: 'Closed',
+	0: "Connecting",
+	1: "Open",
+	2: "Closing",
+	3: "Closed",
 };
 
 const parser = new StompParser();
 
 const WebSocketInspector: React.FC<WebSocketInspectorProps> = ({}) => {
-	const log = useObservable(wsLogger);
+	const log = useReadable(wsLogger);
 	const [cols] = useStdoutDimensions();
 
 	return (
 		<>
-			{log.map(item => (
+			{log.map((item) => (
 				<Box
 					flexDirection="column"
 					key={item.key}
@@ -33,7 +33,7 @@ const WebSocketInspector: React.FC<WebSocketInspectorProps> = ({}) => {
 					marginBottom={1}
 				>
 					<Divider />
-					{item.type === 'stomp/frame' ? (
+					{item.type === "stomp/frame" ? (
 						<Box flexDirection="column" marginTop={1}>
 							<Text bold color="magentaBright">
 								{item.command}
@@ -43,7 +43,7 @@ const WebSocketInspector: React.FC<WebSocketInspectorProps> = ({}) => {
 									<Box key={i} flexWrap="nowrap" marginRight={1}>
 										<Text wrap="end">
 											<Text bold color="blueBright">
-												{key}:{' '}
+												{key}:{" "}
 											</Text>
 											<Text wrap="wrap">{value?.toString()}</Text>
 										</Text>
@@ -54,7 +54,7 @@ const WebSocketInspector: React.FC<WebSocketInspectorProps> = ({}) => {
 								<>
 									{item.headers.find(
 										([key, value]) =>
-											key === 'content-type' && value === 'application/json',
+											key === "content-type" && value === "application/json",
 									) ? (
 										<Text>{formatJSON(parser.decodeText(item.body))}</Text>
 									) : (
@@ -63,19 +63,19 @@ const WebSocketInspector: React.FC<WebSocketInspectorProps> = ({}) => {
 								</>
 							)}
 						</Box>
-					) : item.type === 'readyState' ? (
+					) : item.type === "readyState" ? (
 						<>
 							<Text>
 								{item.state} {ReadyState[item.state]}
 							</Text>
 						</>
-					) : item.type === 'error' ? (
+					) : item.type === "error" ? (
 						<Box>
 							<Text>
 								{item.code}:{item.reason}
 							</Text>
 						</Box>
-					) : item.type === 'ping' ? (
+					) : item.type === "ping" ? (
 						<>
 							<Text>Ping ⏺</Text>
 						</>

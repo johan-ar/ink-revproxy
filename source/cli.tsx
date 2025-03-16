@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-import {render} from 'ink';
-import meow from 'meow';
-import process from 'node:process';
-import React from 'react';
-import App from './app.js';
-import proxy from './proxy.js';
-import {appStore} from './store.js';
-import './util/arrayExtensions.js';
-import clearOutput from './util/clearOutput.js';
-import {unmount} from './util/unmountEmitter.js';
+import { render } from "ink";
+import meow from "meow";
+import process from "node:process";
+import React from "react";
+import App from "./app.js";
+import proxy from "./proxy.js";
+import { appStore } from "./store.js";
+import "./util/arrayExtensions.js";
+import clearOutput from "./util/clearOutput.js";
+import { unmount } from "./util/unmountEmitter.js";
 
 globalThis.process = process;
 
@@ -25,11 +25,14 @@ meow(
 appStore.init();
 proxy.init();
 
-const app = render(<App />, {exitOnCtrlC: false, patchConsole: true});
+const app = render(<App />, {
+	exitOnCtrlC: false,
+	patchConsole: true,
+});
 
 unmount.once(() => {
 	app.unmount();
 	app.cleanup();
 	app.clear();
-	clearOutput().on('exit', () => process.exit(0));
+	clearOutput().on("exit", () => process.exit(0));
 });

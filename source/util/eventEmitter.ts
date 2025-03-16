@@ -1,18 +1,25 @@
-import {Extendable, extendImpl} from './extendable.js';
+import { Extendable, extendImpl } from "./extendable.js";
 
 export type Subscriber<T> = (value: T, unsubscribe: Unsubscriber) => void;
 
 export type Unsubscriber = () => void;
 
-export interface EventEmitter<T = void> {
+type DispatchFn<T> = [T] extends [void] ? () => void : (value: T) => void
+
+export interface Emitter<T = void> {
 	/** dispatch */
 	(value: T): void;
-	dispatch: (value: T) => void;
+	dispatch: DispatchFn<T>;
 	subscribe: (run: Subscriber<T>) => Unsubscriber;
+	on: (run: Subscriber<T>) => Unsubscriber;
 	Type: T;
 }
 
-export type EventEmitterExtendable<T = unknown> = Extendable<EventEmitter<T>>;
+export namespace Emitter {
+	export type On<T = void> = (run: Subscriber<T>) => Unsubscriber;
+}
+
+export type EmitterExtendable<T = unknown> = Extendable<Emitter<T>>;
 
 /**
  * Start and Stop callback lifecycle of `eventEmitter`
@@ -33,7 +40,7 @@ export type Stop = () => void;
  */
 export const eventEmitter = <T = void>(
 	start?: StartStopNotifier<T>,
-): EventEmitterExtendable<T> => {
+): EmitterExtendable<T> => {
 	const subscribers = new Map<Subscriber<T>, Unsubscriber>();
 
 	let stop: Stop | void;
@@ -60,8 +67,9 @@ export const eventEmitter = <T = void>(
 	const extend = (plugin: any) => extendImpl(dispatch, plugin);
 
 	return Object.defineProperties(dispatch, {
-		extend: {value: extend, enumerable: true},
-		subscribe: {value: subscribe, enumerable: true},
-		dispatch: {value: dispatch, enumerable: true},
-	}) as EventEmitterExtendable<T>;
+		extend: { value: extend, enumerable: true },
+		subscribe: { value: subscribe, enumerable: true },
+		on: { value: subscribe, enumerable: true },
+		dispatch: { value: dispatch, enumerable: true },
+	}) as EmitterExtendable<T>;
 };
