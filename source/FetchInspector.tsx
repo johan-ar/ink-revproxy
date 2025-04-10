@@ -3,11 +3,13 @@ import Spinner from "ink-spinner";
 import mime from "mime";
 import React, { useEffect, useMemo, useState } from "react";
 import FetchPreview from "./FetchView.js";
+import Radio, { useToggle } from "./Radio.js";
 import StatusCode from "./StatusCode.js";
 import Text, { TextProps } from "./Text.js";
 import VirtualList, { VirtualListItemComponentProps } from "./VirtualList.js";
 import Divider from "./util/Divider.js";
 import ErrorBoundary from "./util/ErrorBoundary.js";
+import { Portal } from "./util/Portal.js";
 import Shortcut from "./util/Shortcut.js";
 import { LogRecord, browserLogger } from "./util/logger.js";
 import useResponsePending from "./util/useResponsePending.js";
@@ -28,6 +30,8 @@ export const FetchInspector = () => {
 
 	const [tab, setTab] = useState(0);
 
+	const [showPreview, togglePreview] = useToggle(true);
+
 	return (
 		<Box
 			flexDirection="column"
@@ -41,9 +45,9 @@ export const FetchInspector = () => {
 				flexGrow={1}
 			>
 				<VirtualList
-					rows={rows - 2}
+					rows={rows - 1}
 					items={items}
-					ItemComponent={ListItemComponent}
+					ItemComponent={ListItem}
 					nextShortcut="t"
 					prevShortcut="n"
 					width={50}
@@ -53,17 +57,21 @@ export const FetchInspector = () => {
 					followOutput={followOutput}
 					onFollowOutputChange={setFollowOutput}
 				/>
-				<Box width={cols - 52}>
-					{selected && (
+				<Box width={cols - 52} height={rows - 1} flexDirection="column">
+					{selected && showPreview && (
 						<ErrorBoundary key={selected?.key}>
 							<FetchPreview record={selected} tab={tab} onTabChange={setTab} />
 						</ErrorBoundary>
 					)}
 				</Box>
 			</Box>
-			<Box gap={2} width="100%">
-				<Shortcut sequence="t">↓</Shortcut>
-				<Shortcut sequence="n">↑</Shortcut>
+			<Portal id="footer" order={3}>
+				<Shortcut sequence="t" pr={1}>
+					↓
+				</Shortcut>
+				<Shortcut sequence="n" pr={1}>
+					↑
+				</Shortcut>
 				<Shortcut sequence="f" active={followOutput}>
 					Follow Output
 				</Shortcut>
@@ -77,29 +85,22 @@ export const FetchInspector = () => {
 				>
 					Clear
 				</Shortcut>
-			</Box>
+				<Shortcut sequence="p" onPressed={() => togglePreview()}>
+					<Radio checked={showPreview} pr={1} />
+					Preview
+				</Shortcut>
+			</Portal>
 		</Box>
 	);
 };
 
-const ListItemComponent: React.FC<VirtualListItemComponentProps<LogRecord>> = ({
+const ListItem: React.FC<VirtualListItemComponentProps<LogRecord>> = ({
 	item,
 	selected,
-	index,
 }) => {
-	return <Item value={item} index={index} isSelected={selected} />;
-};
+	const isPending = useResponsePending(item);
 
-type ItemProps = {
-	isSelected: boolean;
-	value: LogRecord;
-	index: number;
-};
-
-const Item: React.FC<ItemProps> = ({ value, isSelected }) => {
-	const isPending = useResponsePending(value);
-
-	const style: TextProps = isSelected
+	const style: TextProps = selected
 		? {
 				color: "blackBright",
 				backgroundColor: "whiteBright",
@@ -108,9 +109,9 @@ const Item: React.FC<ItemProps> = ({ value, isSelected }) => {
 			}
 		: {};
 
-	if (!value) return <Divider />;
+	if (!item) return <Divider />;
 
-	const contentType = value.res.getHeaders()["content-type"]?.toString();
+	const contentType = item.res.getHeaders()["content-type"]?.toString();
 
 	return (
 		<Box flexWrap="nowrap" overflowX="hidden" width="100%">
@@ -120,17 +121,17 @@ const Item: React.FC<ItemProps> = ({ value, isSelected }) => {
 						<Spinner type="triangle" />
 					</Text>
 				) : (
-					<StatusCode {...style} pl={1} code={value.res.statusCode} />
+					<StatusCode {...style} pl={1} code={item.res.statusCode} />
 				)}
 			</Box>
 			<Box
 				flexWrap="nowrap"
 				flexShrink={0}
-				width={value.req.method.length + 1}
+				width={item.req.method.length + 1}
 				overflowX="hidden"
 			>
 				<Text {...style} wrap="truncate-end" pl={1}>
-					{value.req.method}
+					{item.req.method}
 				</Text>
 			</Box>
 			<Box flexWrap="nowrap" flexShrink={0} overflowX="hidden">
@@ -140,9 +141,9 @@ const Item: React.FC<ItemProps> = ({ value, isSelected }) => {
 			</Box>
 			<Box flexShrink={1} flexGrow={1} overflowX="hidden">
 				<Text {...style} pl={2} pr={2} wrap="truncate-start">
-					{decodeURIComponent(value.url)}
+					{decodeURIComponent(item.url)}
 				</Text>
-				<Text color={style.backgroundColor}>{isSelected ? "\ue0b0" : " "}</Text>
+				<Text color={style.backgroundColor}>{selected ? "\ue0b0" : " "}</Text>
 			</Box>
 		</Box>
 	);

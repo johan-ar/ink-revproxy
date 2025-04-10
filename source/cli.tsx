@@ -27,7 +27,7 @@ proxy.init();
 
 const app = render(<App />, {
 	exitOnCtrlC: false,
-	patchConsole: true,
+	patchConsole: false,
 });
 
 unmount.once(() => {
@@ -35,4 +35,8 @@ unmount.once(() => {
 	app.cleanup();
 	app.clear();
 	clearOutput().on("exit", () => process.exit(0));
+});
+
+process.on("SIGINT", () => {
+	unmount.dispatch();
 });

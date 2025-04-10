@@ -5,9 +5,9 @@ export type Extendable<T> = {
 	 * @param plugin a plugin factory function
 	 * @returns `T & U`
 	 */
-	extend: <U extends Record<string | number | symbol, any>>(
+	extend<U extends Record<string | number | symbol, any>>(
 		plugin: ((self: T) => U) | U,
-	) => Extendable<Prettify<U & T>>;
+	): Extendable<Prettify<U & T>>;
 } & T;
 
 export function extendImpl(

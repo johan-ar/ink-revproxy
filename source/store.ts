@@ -14,6 +14,7 @@ export type AppStore = {
 		};
 	};
 };
+
 const initialEnv = Object.keys(appConfig.env)[0]!;
 
 export const appStore = writable<AppStore>(

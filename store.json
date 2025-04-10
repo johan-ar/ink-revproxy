@@ -3,11 +3,11 @@
     "currentPath": "/inspector/fetch"
   },
   "env": {
-    "selected": "development",
+    "selected": "testing",
     "state": {
       "development": {
         "cookie": [
-          "SESSION=; Max-Age=604800; Expires=Thu, 20 Mar 2025 20:05:30 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
+          "SESSION=Y2E4NzRkMmQtNmYyMS00ZTY2LWI1YjAtYWVhNGY0NzdhZjhj; Max-Age=604800; Expires=Wed, 16 Apr 2025 12:28:53 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
         ]
       },
       "testing": {
@@ -17,7 +17,12 @@
       },
       "testing2": {
         "cookie": [
-          "SESSION=NjFlNzA2NmYtNzhhZS00OTI5LThjYWMtODVmMWFhYzk4M2E1; Max-Age=604800; Expires=Fri, 21 Mar 2025 14:16:46 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
+          "SESSION=ZmEwMWNhYzUtYThmYi00NGM3LTlmNGMtYmNmODc4ZDY5ZTg5; Max-Age=604800; Expires=Fri, 4 Apr 2025 19:54:53 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
+        ]
+      },
+      "production": {
+        "cookie": [
+          "SESSION=NWE0MDkxNzgtN2NlMC00MzE5LTgyODYtZjU3ZjY1NzkwYWY3; Max-Age=604800; Expires=Tue, 1 Apr 2025 15:43:17 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
         ]
       }
     }

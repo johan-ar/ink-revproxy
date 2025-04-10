@@ -1,7 +1,8 @@
 {
 	"compilerOptions": {
 		"allowSyntheticDefaultImports": true,
-		"erasableSyntaxOnly": true,
+		"erasableSyntaxOnly": false,
+		"esModuleInterop": true,
 		"incremental": true,
 		"jsx": "react",
 		"lib": ["ES2024"],

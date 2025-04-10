@@ -4,6 +4,7 @@ import React, {
 	type ErrorInfo,
 	type PropsWithChildren,
 } from "react";
+import { logger } from "./logger.js";
 
 type State = { fail: boolean; error?: Error; errorInfo?: ErrorInfo };
 
@@ -19,6 +20,8 @@ export default class ErrorBoundary extends Component<PropsWithChildren, State> {
 			error,
 			errorInfo,
 		});
+		logger.error(error);
+		logger.error(errorInfo);
 	}
 	render(): React.ReactNode {
 		const { fail, error, errorInfo } = this.state;

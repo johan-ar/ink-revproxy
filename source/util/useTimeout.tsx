@@ -1,30 +1,42 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
-export const useTimeout = () =>
-	useMemo(() => {
-		let timeout: NodeJS.Timeout | undefined = undefined;
+export type Stop = () => void;
 
-		return {
-			/**
-			 * Starts a new timeout with the given callback and arguments.
-			 * If a timeout is already running, it will be stopped first.
-			 * @param {Function} cb - the callback to call when the timeout completes
-			 * @param {number} ms - the number of milliseconds to wait before calling the callback
-			 * @param {...any} args - any arguments to pass to the callback
-			 */
-			start<Args extends any[]>(
-				cb: (...args: Args) => void,
-				ms: number,
-				...args: Args
-			) {
-				clearTimeout(timeout);
-				timeout = setTimeout(cb, ms, ...args);
-			},
-			/**
-			 * Stops the currently running timeout, if any.
-			 */
-			stop() {
-				timeout = void clearTimeout(timeout);
-			},
-		};
+const createTimeout = () => {
+	let timer: NodeJS.Timeout | undefined;
+
+	return {
+		/**
+		 * Starts a timeout that will execute the given callback after the
+		 * specified delay. The callback will be invoked with the given
+		 * arguments.
+		 *
+		 * @param {Function} cb - The callback to execute after the delay
+		 * @param {number} ms - The delay to wait before executing the callback
+		 * @param {...*} args - The arguments to pass to the callback
+		 * @return {Stop} A function that can be used to stop the timeout
+		 */
+		start<Args extends any[]>(
+			cb: (...args: Args) => void,
+			ms: number,
+			...args: Args
+		): Stop {
+			clearTimeout(timer);
+			timer = setTimeout(cb, ms, ...args);
+			return () => clearTimeout(timer);
+		},
+		stop() {
+			clearTimeout(timer);
+		},
+	};
+};
+
+export const useTimeout = () => {
+	const timeout = useMemo(() => {
+		return createTimeout();
 	}, []);
+	useEffect(() => {
+		return timeout.stop;
+	}, []);
+	return timeout;
+};

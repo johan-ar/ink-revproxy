@@ -1,29 +1,39 @@
-import {Box} from 'ink';
-import Spinner from 'ink-spinner';
-import React from 'react';
-import StatusCode from './StatusCode.js';
-import Text from './Text.js';
-import Divider from './util/Divider.js';
-import {LogRecord} from './util/logger.js';
-import useResponsePending from './util/useResponsePending.js';
+import { Box } from "ink";
+import Spinner from "ink-spinner";
+import React, { useMemo } from "react";
+import StatusCode from "./StatusCode.js";
+import Text from "./Text.js";
+import Divider from "./util/Divider.js";
+import { LogRecord } from "./util/logger.js";
+import useResponsePending from "./util/useResponsePending.js";
 
 type HeadersViewProps = {
 	record: LogRecord;
 };
 
-const HeadersView: React.FC<HeadersViewProps> = ({record}) => {
-	const {res, req, url} = record;
+const HeadersView: React.FC<HeadersViewProps> = ({ record }) => {
+	const { res, req, url } = record;
 	const isPending = useResponsePending(record);
 
+	const reqHeaders = useMemo(() => {
+		return Object.entries(req.headers).sort();
+	}, []);
+
+	const resHeaders = useMemo(() => {
+		return res
+			.getHeaderNames()
+			.sort()
+			.map((name) => [name, res.getHeader(name)]);
+	}, [isPending]);
+
 	return (
-		<Box flexDirection="column" borderStyle="single" width={'100%'}>
+		<Box flexDirection="column" marginTop={1} borderLeft width="100%">
 			<Box paddingX={1} gap={1}>
 				<Box width={7}>
 					<Text bold>{req.method}</Text>
 				</Box>
 				<Text>
-					https://{req.headers.host}
-					{req.path} {url}
+					https://{`${req.headers.host}${req.path}`} → {url}
 				</Text>
 			</Box>
 			<Box columnGap={1}>
@@ -45,45 +55,36 @@ const HeadersView: React.FC<HeadersViewProps> = ({record}) => {
 			</Box>
 
 			<Divider>
-				<Box paddingX={1}>
-					<Text bold p={1}>
-						Response
-					</Text>
+				<Text p={1}>
+					<Text bold>Response</Text>
 					{isPending && (
-						<Box paddingLeft={1}>
-							<Text color="greenBright">
-								<Spinner type="triangle" />
-							</Text>
-						</Box>
-					)}
-				</Box>
-			</Divider>
-			{res
-				.getHeaderNames()
-				.sort()
-				.map((name, i) => (
-					<Box key={i} marginX={1}>
-						<Text color="blueBright" bold mr={1}>
-							{name}:
+						<Text pl={1} color="greenBright">
+							<Spinner type="triangle" />
 						</Text>
-						<Text>{res.getHeader(name)}</Text>
-					</Box>
-				))}
+					)}
+				</Text>
+			</Divider>
+			{resHeaders.map(([name, value], i) => (
+				<Box key={i} marginX={1}>
+					<Text color="blueBright" bold>
+						{name}:
+					</Text>
+					<Text>{value}</Text>
+				</Box>
+			))}
 			<Divider>
 				<Text bold p={1}>
 					Request
 				</Text>
 			</Divider>
-			{Object.entries(req.headers)
-				.sort()
-				.map(([name, value], i) => (
-					<Box key={i} marginX={1}>
-						<Text color="blueBright" bold mr={1}>
-							{name}:
-						</Text>
-						<Text>{value}</Text>
-					</Box>
-				))}
+			{reqHeaders.map(([name, value], i) => (
+				<Box key={i} marginX={1}>
+					<Text color="blueBright" bold>
+						{name}:
+					</Text>
+					<Text>{value}</Text>
+				</Box>
+			))}
 		</Box>
 	);
 };

@@ -1,6 +1,6 @@
 import { nothing, produce } from "immer";
-import _, { identity } from "lodash";
-import { Dispatch, useCallback, useEffect, useState } from "react";
+import _ from "lodash";
+import { Dispatch, useSyncExternalStore } from "react";
 import { Partial } from "ts-toolbelt/out/Object/Partial.js";
 import {
 	EmitterExtendable,
@@ -10,6 +10,7 @@ import {
 	type Unsubscriber,
 } from "./eventEmitter.js";
 import { extendImpl, type Extendable } from "./extendable.js";
+import { Get } from "./types.js";
 export type { Stop, Subscriber, Unsubscriber };
 // enableMapSet();
 
@@ -30,7 +31,7 @@ export interface Readable<T = unknown> {
 	when: (predicate: (value: T) => boolean) => Promise<T>;
 	emitter: EmitterExtendable<T>;
 	Type: T;
-	readonly _value: T;
+	readonly snapshot: () => T;
 }
 export type ReadableExtendable<T = unknown> = Extendable<Readable<T>>;
 
@@ -69,8 +70,12 @@ export const writable = <T>(
 	start?: StartStopNotifier<T>,
 ): WritableExtendable<T> => {
 	let currentValue = initialValue;
+	let dirty = false;
 
-	const emitter = eventEmitter<T>(() => start?.(update, get));
+	const emitter = eventEmitter<T>(() => {
+		start?.(update, get);
+		dirty = true;
+	});
 
 	const get = (): T => {
 		let value: any;
@@ -101,6 +106,10 @@ export const writable = <T>(
 				}
 			});
 		});
+	const snapshot = () => {
+		if (!dirty) start?.(update, get);
+		return currentValue;
+	};
 
 	return {
 		extend(plugin) {
@@ -111,10 +120,8 @@ export const writable = <T>(
 		subscribe,
 		when,
 		emitter,
+		snapshot,
 		Type: true as T,
-		get _value() {
-			return currentValue;
-		},
 	};
 };
 
@@ -178,7 +185,7 @@ export function derived(
 	} else if (typeof transform === "string") {
 		transformFn = getPropFn(splitPathStr(transform));
 	} else if (transform === undefined) {
-		transformFn = identity;
+		transformFn = _.identity;
 	} else {
 		throw new Error("Unknown transform type", { cause: transform });
 	}
@@ -196,7 +203,7 @@ function splitPathStr(path: string): string[] {
 }
 
 function getPropFn<P extends string[]>(path: P) {
-	return <T>(source: T): Internal.Get<T, P> => {
+	return <T>(source: T): Get<T, P> => {
 		try {
 			let value: any = source;
 			for (const key of path) value = value[key];
@@ -223,159 +230,46 @@ export function asReadable<T>(writable: T) {
 	return writable as AsReadable<T>;
 }
 export function useReadable<T>(observable: Readable<T>) {
-	const [state, setState] = useState<T>(observable.get);
-	useEffect(() => observable.subscribe(setState), []);
-	return state;
+	return useSyncExternalStore(observable.subscribe, observable.snapshot);
 }
 
-type UseWritableResult<T> = [T, Dispatch<Updater<T> | T>];
+type UseWritableResult<T> = [T, Dispatch<Updater<T>>];
 
 export function useWritable<T>(observable: Writable<T>): UseWritableResult<T> {
-	const state = useReadable(observable);
-	const setState: Dispatch<Updater<T> | T> = useCallback(
-		(nextState) => {
-			if (typeof nextState === "function")
-				return observable.update(nextState as Updater<T>);
-
-			observable.update(() => nextState as T);
-		},
-		[observable],
-	);
-	return [state, setState];
+	const state = useSyncExternalStore(observable.subscribe, observable.snapshot);
+	return [state, observable.update];
 }
 
-export function mergePlugin<T extends object>(observable: Writable<T>) {
-	return {
-		merge(partial: Partial<T, "deep">) {
-			observable.update(($store) => _.merge($store, partial));
-		},
-	};
-}
+export namespace Plugin {
+	export function merge<T extends object>(observable: Writable<T>) {
+		return {
+			merge(partial: Partial<T, "deep">) {
+				observable.update(($store) => _.merge($store, partial));
+			},
+		};
+	}
 
-export function setPlugin<T>(observable: Writable<T>) {
-	return {
-		set(value: T) {
-			observable.update(() => (value === undefined ? (nothing as T) : value));
-		},
-	};
-}
+	export function set<T extends Writable<any>, Type = T["Type"]>(
+		observable: T,
+	) {
+		return {
+			set(value: Type) {
+				observable.update(() =>
+					value === undefined ? (nothing as Type) : value,
+				);
+			},
+		};
+	}
 
-export function writableHookPlugin<T>(observable: Writable<T>) {
-	return {
-		useWritable: () => useWritable(observable),
-	};
-}
+	export function writableHook<T>(observable: Writable<T>) {
+		return {
+			useWritable: () => useWritable(observable),
+		};
+	}
 
-export function readableHookPlugin<T>(observable: Writable<T>) {
-	return {
-		useReadable: () => useReadable(observable),
-	};
-}
-
-export type Get<
-	T,
-	Path extends
-		| string
-		| (string | number | bigint | symbol)[]
-		| undefined
-		| null
-		| void = void,
-> = Internal.Get<T, Path>;
-
-export namespace Internal {
-
-	export type Get<T, Path> =
-		/***/
-		Path extends void | []
-			? T
-			: Path extends any[]
-				? Get_<T, Path>
-				: Path extends string
-					? SplitPath<Path> extends infer Keys
-						? Get_<T, Keys>
-						: never
-					: never;
-
-	type Get_<T, Path> =
-		/***/
-		Path extends [infer Key, ...infer Rest]
-			? ShallowGet<T, Key> extends infer Value
-				? Rest extends []
-					? Value
-					: Get_<Value, Rest>
-				: never
-			: never;
-
-	export type ShallowGet<T, Key> =
-		/***/
-		FixKey<T, Key> extends infer FixedKey
-			? FixedKey extends keyof T
-				? T[FixedKey]
-				: never
-			: never;
-
-	type FixKey<T, Key> =
-		/***/
-		Key extends keyof T
-			? Key
-			: AsString<Key> extends infer KeyStr extends string
-				? { [K in keyof T as AsString<K>]: K } extends infer KeyRecord
-					? KeyStr extends keyof KeyRecord
-						? KeyRecord[KeyStr]
-						: never
-					: never
-				: never;
-
-	export type SplitPath<P, List extends any[] = []> =
-		FirstKey<P> extends infer Tuple
-			? Tuple extends [infer Key]
-				? [...List, Key]
-				: Tuple extends [infer Key, infer Rest]
-					? SplitPath<Rest, [...List, Key]>
-					: never
-			: never;
-
-
-	export type FirstKey<Path> = string extends Path
-		? [Path]
-		: Path extends string
-			? FirstKey_<Path, "">
-			: never;
-
-	export type FirstKey_<Path extends string, Key extends string> =
-		/***/
-		Path extends ""
-			? [Key]
-			: StartsWith<Path, "\\."> extends 1
-				? FirstKey_<Tail<Tail<Path>>, `${Key}.`>
-				: StartsWith<Path, "."> extends 1
-					? [Key, Tail<Path>]
-					: FirstKey_<Tail<Path>, `${Key}${Head<Path>}`>;
-
-
-
-	export type StartsWith<
-		S extends string,
-		Start extends string,
-	> = S extends `${Start}${string}` ? 1 : 0;
-
-	export type Head<S> = S extends `${infer Head}${string}` ? Head : never;
-
-	export type Tail<S> = S extends `${string}${infer Tail}` ? Tail : never;
-
-	export type AsString<T> = T extends string | number | bigint ? `${T}` : never;
-
-	type T1 = Get<{ a: { b: { [Symbol.iterator]: 1 } } }, "a.b">;
-	//   ^?
-	type T2 = Get<
-		{ a: { b: { [Symbol.iterator]: 1 } } },
-		["a", "b", typeof Symbol.iterator]
-	>;
-	//   ^?
-	type T3 = Get<{ a: { b: { [Symbol.iterator]: 1 } } }, null>;
-	//   ^?
-	type T4 = Get<{ a: { b: { [Symbol.iterator]: 1 } } }, undefined>;
-	//   ^?
-	type T5 = Get<{ a: { b: { [Symbol.iterator]: 1 } } }, void>;
-	//   ^?
+	export function readableHook<T>(observable: Writable<T>) {
+		return {
+			useReadable: () => useReadable(observable),
+		};
+	}
 }

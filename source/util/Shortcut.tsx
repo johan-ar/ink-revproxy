@@ -1,6 +1,5 @@
 import { useInput } from "ink";
-import _ from "lodash";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { ReactNode, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Text, { TextProps } from "../Text.js";
 import { eventEmitter } from "./eventEmitter.js";
 import noop from "./noop.js";
@@ -47,24 +46,40 @@ const Shortcut: React.FC<ShortcutProps> = ({
 		disabled,
 	);
 
-	const text = useMemo(() => {
+	const children_ = useMemo(() => {
 		const seqStr = sequenceToString(seq);
-		const childrenArray = Array.isArray(children) ? children : [children];
-		const textNodes: string[] = _.takeWhile(childrenArray, _.isString);
-		const nodes: React.ReactNode = childrenArray.slice(textNodes.length);
+		const childrenArray: ReactNode[] = Array.isArray(children)
+			? children
+			: [children];
+		let leftNodes: ReactNode[] = [];
+		let textNodes: string[] = [];
+		let rightNodes: ReactNode[] = [];
+
+		for (let node of childrenArray) {
+			if (!(typeof node === "string")) leftNodes.push(node);
+			else break;
+		}
+		for (let node of childrenArray.slice(leftNodes.length)) {
+			if (typeof node === "string") textNodes.push(node);
+			else break;
+		}
+		for (let node of childrenArray.slice(leftNodes.length + textNodes.length)) {
+			rightNodes.push(node);
+		}
 
 		if (textNodes.length) {
 			const text = textNodes.join("");
 			const index = text.toLowerCase().indexOf(seqStr.toLowerCase());
 			if (index !== -1)
 				return [
+					leftNodes,
 					text.slice(0, index),
-					text.slice(index, index + seqStr.length),
+					text.slice(index, index + seqStr.length), // shortcut subtext
 					text.slice(index + seqStr.length),
-					nodes,
+					rightNodes,
 				];
 		}
-		return ["", seqStr, "️:", children];
+		return [null, null, seqStr, "️:", children];
 	}, [children, seq]);
 
 	const noInverse = Boolean(activeColor || activeBackgroundColor);
@@ -78,12 +93,13 @@ const Shortcut: React.FC<ShortcutProps> = ({
 			}
 			inverse={noInverse ? false : isActive}
 		>
-			{text[0]}
+			{children_[0]}
+			{children_[1]}
 			<Text underline bold color="inherit">
-				{text[1]}
+				{children_[2]}
 			</Text>
-			{text[2]}
-			{text[3]}
+			{children_[3]}
+			{children_[4]}
 		</Text>
 	);
 };
@@ -110,7 +126,7 @@ export function useShortcut(
 	useEffect(() => {
 		if (disabled) return;
 
-		return inputEmitter.subscribe((ev) => {
+		return GlobalInputEmitter.subscribe((ev) => {
 			if (sequenceMatch(seq, ev)) onPressed(ev);
 		});
 	}, [disabled, seq, onPressed]);
@@ -118,7 +134,7 @@ export function useShortcut(
 	return seq;
 }
 
-const inputEmitter = eventEmitter<ShortcutSequence>();
+const GlobalInputEmitter = eventEmitter<ShortcutSequence>();
 
 /**
  * Listens to the current input context and emits input events to
@@ -126,6 +142,6 @@ const inputEmitter = eventEmitter<ShortcutSequence>();
  */
 export function useInputContext() {
 	useInput((input, key) => {
-		inputEmitter([key, input]);
+		GlobalInputEmitter([key, input]);
 	});
 }

@@ -15,6 +15,7 @@ const KeyMap = {
 	pageUp: "PG▲",
 	return: "⮐",
 	tab: "tab",
+	space: "⎵",
 } as const satisfies Record<keyof Key, string>;
 
 export type Key = Partial<InkKey> & {
@@ -58,12 +59,15 @@ export function sequenceMatch(
 export function sequenceToString(sequence?: ShortcutSequence): string {
 	if (!sequence) return "";
 
+	let input = sequence[INPUT];
+	if (input === " ") input = KeyMap["space"];
+
 	return Object.entries(sequence[KEY])
 		.reduce(
 			(out, [key, value]) =>
 				value ? [...out, KeyMap[key as keyof InkKey]] : out,
 			[] as string[],
 		)
-		.concat(sequence[INPUT])
+		.concat(input)
 		.join("+");
 }

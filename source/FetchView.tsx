@@ -1,13 +1,14 @@
 import { Box } from "ink";
-import { gunzipSync } from "node:zlib";
-import React, { Dispatch, SetStateAction, useMemo, useState } from "react";
-import Checkbox from "./Checkbox.js";
+import React, { Dispatch, SetStateAction, useMemo } from "react";
 import HeadersView from "./HeadersView.js";
+import Radio, { useToggle } from "./Radio.js";
 import Text from "./Text.js";
 import Divider from "./util/Divider.js";
 import { formatJSON } from "./util/formatJSON.js";
-import { LogRecord } from "./util/logger.js";
+import { Body, LogRecord } from "./util/logger.js";
+import ScrollableBox, { ScrollableBoxRef } from "./util/ScrollableBox.js";
 import Shortcut, { useShortcut } from "./util/Shortcut.js";
+import { useRefState } from "./util/useRefState.js";
 import { useReadable } from "./util/writable.js";
 
 type FetchPreviewProps = {
@@ -21,89 +22,59 @@ const FetchPreview: React.FC<FetchPreviewProps> = ({
 	tab,
 	onTabChange,
 }) => {
-	const [showPreview, setShowPreview] = useState(true);
-	useShortcut(" ", () => setShowPreview((value) => !value));
-
-	const [showPreflight, setShowPreflight] = useState(false);
+	const [showPreflight, togglePreflight] = useToggle(false);
 	const hasPreflight = Boolean(record.preflight);
 	const current = hasPreflight && showPreflight ? record.preflight! : record;
-
-	useShortcut(
-		"p",
-		() => {
-			if (hasPreflight) setShowPreflight((value) => !value);
-		},
-		hasPreflight,
-	);
-
-	const reqBody = useReadable(current.reqBody);
-	const resBody = useReadable(current.resBody);
 
 	useShortcut("r", () => {
 		if (tab === 1) onTabChange(2);
 		else onTabChange(1);
 	});
 
-	if (showPreview)
-		return (
-			<Box flexDirection="column" flexGrow={1}>
-				<Box flexDirection="row" gap={2}>
-					<Shortcut
-						sequence="h"
-						onPressed={() => onTabChange(0)}
-						active={tab === 0}
-						p={1}
+	return (
+		<Box flexDirection="column" flexGrow={1}>
+			<Box flexDirection="row" gap={2}>
+				<Shortcut
+					sequence="h"
+					onPressed={() => onTabChange(0)}
+					active={tab === 0}
+					p={1}
+				>
+					Headers
+				</Shortcut>
+				<Shortcut sequence="r" active={tab === 1} disabled p={1}>
+					Response
+				</Shortcut>
+				<Shortcut sequence="r" active={tab === 2} disabled p={1}>
+					Request
+				</Shortcut>
+				{hasPreflight && (
+					<Radio
+						checked={showPreflight}
+						color={showPreflight ? "greenBright" : undefined}
 					>
-						Headers
-					</Shortcut>
-					<Shortcut sequence="r" active={tab === 1} disabled p={1}>
-						Response
-					</Shortcut>
-					<Shortcut sequence="r" active={tab === 2} disabled p={1}>
-						Request
-					</Shortcut>
-					{hasPreflight && (
-						<Checkbox
-							checked={showPreflight}
-							color={showPreflight ? "greenBright" : undefined}
-						>
-							<Shortcut sequence="p" ml={1}>
-								Preflight
-							</Shortcut>
-						</Checkbox>
-					)}
-				</Box>
-				{(() => {
-					switch (tab) {
-						case 0:
-							return <HeadersView record={current} />;
-						case 1:
-							return (
-								<BodyPreview
-									mime={
-										current.res.getHeaders()["content-type"]?.toString() || ""
-									}
-									data={resBody}
-									encoding={current.res
-										.getHeaders()
-										["content-encoding"]?.toString()}
-								/>
-							);
-						case 2:
-							return (
-								<BodyPreview
-									mime={current.req.headers["content-type"]}
-									data={reqBody}
-								/>
-							);
-						default:
-							return null;
-					}
-				})()}
+						<Shortcut sequence="f" p={1} onPressed={() => togglePreflight()}>
+							Preflight
+						</Shortcut>
+					</Radio>
+				)}
 			</Box>
-		);
-
-	return null;
+			{tab === 0 ? (
+				<HeadersView record={current} />
+			) : tab === 1 ? (
+				<BodyPreview
+					mime={current.res.getHeaders()["content-type"]?.toString() || ""}
+					body={current.resBody}
+					encoding={current.res.getHeaders()["content-encoding"]?.toString()}
+				/>
+			) : tab === 2 ? (
+				<BodyPreview
+					mime={current.req.headers["content-type"]}
+					body={current.reqBody}
+				/>
+			) : null}
+		</Box>
+	);
 };
 
 export default FetchPreview;
@@ -111,21 +82,18 @@ export default FetchPreview;
 export type BodyPreview = {
 	encoding?: string;
 	mime?: string;
-	data: string;
+	body: Body;
 };
 
-export const BodyPreview: React.FC<BodyPreview> = ({
-	mime,
-	data,
-	encoding,
-}) => {
-	if (encoding?.startsWith("gzip")) {
-		data = gunzipSync(data).toString("utf-8");
-	}
+export const BodyPreview: React.FC<BodyPreview> = ({ mime, body }) => {
+	let buff = useReadable(body);
 
 	const render = useMemo(() => {
-		switch (mime?.split(";")[0]) {
+		let data: string;
+		const mimeType = mime?.split(";")[0];
+		switch (mimeType) {
 			case "application/x-www-form-urlencoded":
+				data = buff?.toString("utf-8") ?? "<empty>";
 				return (
 					<Box flexDirection="column">
 						{map(new URLSearchParams(data), ([key, value]) => (
@@ -133,27 +101,37 @@ export const BodyPreview: React.FC<BodyPreview> = ({
 								<Text color="greenBright" bold>
 									{key}:
 								</Text>
-								<Text>{value}</Text>
+								<Text wrap="wrap">{value}</Text>
 							</Box>
 						))}
 					</Box>
 				);
 			case "application/json":
+				data = buff?.toString("utf-8") ?? "<empty>";
 				return (
 					<Box gap={1}>
-						<Text>{formatJSON(data)}</Text>
+						<Text wrap="wrap">{formatJSON(data)}</Text>
 					</Box>
 				);
 			case "text/plain":
-				return <Text wrap="truncate">{data}</Text>;
 			case "text/html":
 			case "text/xml":
 			case "application/xml":
-				return <Text wrap="truncate">{data}</Text>;
+				data = buff?.toString("utf-8") ?? "<empty>";
+				return <Text wrap="wrap">{data}</Text>;
 			default:
-				return <Text wrap="truncate">Binary data</Text>;
+				if (buff) 
+					return (
+						<Text wrap="wrap">
+							data:{mimeType};base64,{buff.toString("base64")}
+						</Text>
+					);
+				
+				return "<empty>";
 		}
-	}, [data, mime]);
+	}, [buff, mime]);
+
+	const ref = useRefState<ScrollableBoxRef>(null);
 
 	return (
 		<Box flexDirection="column" borderStyle="single" width="100%">
@@ -161,8 +139,19 @@ export const BodyPreview: React.FC<BodyPreview> = ({
 				<Text color="whiteBright">{mime}</Text>
 			</Box>
 			<Divider />
-			<Box paddingX={1} flexWrap="wrap">
-				{render}
+			<Box paddingX={1} flexWrap="wrap" height="100%">
+				<ScrollableBox
+					ref={ref}
+					height="100%"
+					width="100%"
+					upShortcut={{ upArrow: true }}
+					downShortcut={{ downArrow: true }}
+					leftShortcut={{ leftArrow: true }}
+					rightShortcut={{ rightArrow: true }}
+					innerProps={{ width: ref.current?.width }}
+				>
+					{render}
+				</ScrollableBox>
 			</Box>
 		</Box>
 	);

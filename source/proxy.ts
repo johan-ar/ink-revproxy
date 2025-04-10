@@ -1,11 +1,12 @@
 import express from "express";
+import { Buffer } from "node:buffer";
 import fs from "node:fs";
 import SockjsServer from "sockjs";
 import SockjsClient from "sockjs-client";
 import appConfig from "./config.js";
 import { appStore } from "./store.js";
 import protocol from "./util/http.js";
-import { browserLogger, wsLogger } from "./util/logger.js";
+import { browserLogger, logger, wsLogger } from "./util/logger.js";
 import noop from "./util/noop.js";
 import { StompParser } from "./util/stompParser.js";
 import timeout from "./util/timeout.js";
@@ -172,25 +173,20 @@ export function createProxy() {
 					// const buffer = Buffer.alloc(
 					// 	Number(backendRes.headers['content-length'] || 0),
 					// );
+					const contentLength = Number(
+						backendRes.headers["content-length"] || 0,
+					);
+					const buffer = Buffer.alloc(contentLength);
 					backendRes
-						.on("data", (chunk) => {
+						.on("data", (chunk: Buffer) => {
+							logger.log(typeof chunk, chunk.constructor.name);
 							browserRes.write(chunk);
-							// buffer.write(
-							// 	chunk,
-							// 	(backendRes.headers['content-encoding'] ||
-							// 		'utf-8') as BufferEncoding,
-							// );
-							log.resBody.append(chunk);
+							chunk.copy(buffer);
+							// buffer.write(chunk, backendRes.readableEncoding || "utf-8");
 						})
 						.on("end", () => {
-							// if (backendRes.headers['content-type'] === 'application/json') {
-							// 	try {
-							// 		routeConfig.transformResponse?.(buffer.toJSON())
-							// 	} catch (e) {
-							// 		console.log('transform fail', e)
-							// 	}
-							// }
 							browserRes.end();
+							log.resBody.set(buffer);
 						})
 						.on("error", () => {
 							browserRes.end();
@@ -206,15 +202,18 @@ export function createProxy() {
 				console.log(err);
 			});
 
+		const contentLength = Number(backendReq.getHeader("content-length") || 0);
+		const buffer = Buffer.alloc(contentLength);
 		browserReq
-			.on("data", (chunk) => {
+			.on("data", (chunk: Buffer) => {
 				if (!browserReq.complete) {
 					backendReq.write(chunk);
-					log.reqBody.append(chunk);
+					chunk.copy(buffer);
 				}
 			})
 			.on("end", () => {
 				backendReq.end();
+				log.reqBody.set(buffer);
 			});
 	});
 	//#endregion

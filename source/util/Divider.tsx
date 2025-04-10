@@ -1,9 +1,9 @@
-import {Box} from 'ink';
-import React from 'react';
+import { Box } from "ink";
+import React from "react";
 
 type DividerProps = React.PropsWithChildren<{}>;
 
-const Divider: React.FC<DividerProps> = ({children}) => {
+const Divider: React.FC<DividerProps> = ({ children }) => {
 	if (!children)
 		return (
 			<Box
@@ -12,6 +12,7 @@ const Divider: React.FC<DividerProps> = ({children}) => {
 				borderLeft={false}
 				borderRight={false}
 				flexGrow={1}
+				overflow="hidden"
 			/>
 		);
 

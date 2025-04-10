@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { O } from "ts-toolbelt";
 import { nextKey } from "./nextKey.js";
 import { IRawFrameType } from "./stompParser.js";
-import { writable } from "./writable.js";
+import { Plugin, Writable, writable } from "./writable.js";
 
 export type LogRecord = Key & {
 	type: "fetch";
@@ -24,14 +24,10 @@ export type LogRecord = Key & {
 	[key: string]: any;
 };
 
-type Body = ReturnType<typeof body>;
+export type Body = ReturnType<typeof body>;
 
 const body = () =>
-	writable<string>("").extend((self) => ({
-		append(chunk: string) {
-			self.update((value) => value.concat(chunk));
-		},
-	}));
+	writable<Buffer | null>(null).extend(Plugin.set<Writable<Buffer | null>>);
 
 const isPreflight = (req: Request) =>
 	req.method === "OPTIONS" && req.headers["access-control-request-method"];
@@ -75,7 +71,7 @@ const createLogger = () => {
 					self.update(($data) => ($data.push(record), $data));
 				}
 			}
-			self.update(($data) => $data.slice($data.length - 120, $data.length));
+			self.update(($data) => $data.slice($data.length - 250, $data.length));
 
 			return record;
 		},
@@ -178,4 +174,9 @@ export const wsLogger = writable<WSRecord[]>([], undefined)
 
 export const logger = new Console({
 	stdout: fs.createWriteStream("./log.txt", { encoding: "utf-8" }),
+	stderr: fs.createWriteStream("./log.txt", { encoding: "utf-8" }),
+});
+
+process.on("error", (err) => {
+	logger.error(err);
 });

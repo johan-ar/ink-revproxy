@@ -6,10 +6,10 @@ import React, {
 	useMemo,
 	useState,
 } from "react";
+import { VScrollbar } from "./Scrollbar.js";
 import noop from "./util/noop.js";
 import { useShortcut } from "./util/Shortcut.js";
 import { ShortcutSequenceProp } from "./util/shortcutDefinitions.js";
-import VScrollbar from "./VScrollbar.js";
 
 export type VirtualListItem<T = any> =
 	T extends Record<"key", React.Key>
@@ -103,8 +103,8 @@ const VirtualList = forwardRef(
 			let index = current.item
 				? fastIndexOf(items, current.item, current.lastIndex)
 				: 0;
-			let start = index - rows / 2;
-			let end = index + rows / 2;
+			let start = index - Math.floor(rows / 2);
+			let end = index + Math.ceil(rows / 2);
 
 			if (end > items.length) {
 				start = start - (end - items.length);
@@ -132,13 +132,17 @@ const VirtualList = forwardRef(
 		useShortcut(prevShortcut, prev);
 		useShortcut(followOutputShortcut, () => setFollowOutputActive(true));
 
+		const currentRows = Math.min(rows, items.length);
+
 		return (
 			<Box flexDirection="column" {...props} height={rows}>
 				<Box flexWrap="nowrap" width="100%">
 					<VScrollbar
-						height={Math.min(rows, items.length)}
-						top={window.currentIndex}
-						scrollHeight={items.length}
+						height={currentRows}
+						scrollTop={window.currentIndex}
+						scrollHeight={items.length + currentRows}
+						animate
+						visible
 					/>
 					<Box
 						flexDirection="column"
@@ -156,14 +160,6 @@ const VirtualList = forwardRef(
 						))}
 					</Box>
 				</Box>
-				{/* <Box gap={2} width="100%">
-					<Shortcut {...nextShortcut}>↓</Shortcut>
-					<Shortcut {...prevShortcut}>↑</Shortcut>
-					<Shortcut {...followOutputShortcut} pressed={followOutput.active}>
-						Follow Output
-					</Shortcut>
-					{footer}
-				</Box> */}
 			</Box>
 		);
 	},
@@ -212,7 +208,7 @@ function fastIndexOf<T extends { key: React.Key }>(
 	item: T,
 	hintIndex: number,
 ) {
-	if (hintIndex === -1) hintIndex = array.length / 2;
+	if (hintIndex === -1) hintIndex = Math.floor(array.length / 2);
 	const { key } = item;
 
 	for (let i = 0; i < Math.max(hintIndex, array.length - hintIndex); i++) {

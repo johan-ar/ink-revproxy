@@ -1,10 +1,10 @@
-import {useReducer} from 'react';
+import { useReducer } from "react";
 
-const rerender = (i: number) => i + 1;
+function rerender(state: number) {
+	return state + 1;
+}
 
-const useRerender = () => {
+export default function useRerender() {
 	const [, trigger] = useReducer(rerender, 0);
 	return trigger;
-};
-
-export default useRerender;
+}
