@@ -3,7 +3,7 @@
     "currentPath": "/inspector/fetch"
   },
   "env": {
-    "selected": "testing",
+    "selected": "development",
     "state": {
       "development": {
         "cookie": [
@@ -12,7 +12,7 @@
       },
       "testing": {
         "cookie": [
-          "SESSION=NzY1MTRmMGItMTJkNi00NzE4LWJkZGQtNmU0MTFlNDBlMmE4; Max-Age=604800; Expires=Thu, 20 Mar 2025 20:09:34 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
+          "SESSION=ZGIzOTdkNTktOGNjOS00NzE0LThmZmItN2I4ZmRkMjQ3YzQ2; Max-Age=604800; Expires=Fri, 18 Apr 2025 13:46:56 GMT; Domain=b2chat.io; Path=/; Secure; HttpOnly; SameSite=None"
         ]
       },
       "testing2": {

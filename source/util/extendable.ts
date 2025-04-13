@@ -10,12 +10,9 @@ export type Extendable<T> = {
 	): Extendable<Prettify<U & T>>;
 } & T;
 
-export function extendImpl(
-	target: any,
-	plugin: ((self: any) => any) | any,
-): any {
+export function extendImpl(target: any, plugin: any): any {
 	const extension =
-		(plugin && typeof plugin === "function" ? plugin(target) : plugin) ?? {};
+		(typeof plugin === "function" ? plugin(target) : plugin) ?? {};
 
 	for (const key in extension)
 		if (Object.hasOwn(extension, key))

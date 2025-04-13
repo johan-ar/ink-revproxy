@@ -44,7 +44,6 @@ export const eventEmitter = <T = void>(
 	const subscribers = new Map<Subscriber<T>, Unsubscriber>();
 
 	let stop: Stop | void;
-
 	const subscribe = (run: Subscriber<T>): Unsubscriber => {
 		const unsubscriber = () => {
 			subscribers.delete(run);

@@ -11,9 +11,7 @@ export default function useStdoutDimensions(): [columns: number, rows: number] {
 
 	useEffect(() => {
 		const handler = () => setDimensions([stdout.columns, stdout.rows]);
-
 		stdout.on("resize", handler);
-
 		return () => {
 			stdout.off("resize", handler);
 		};

@@ -32,11 +32,7 @@ const createTimeout = () => {
 };
 
 export const useTimeout = () => {
-	const timeout = useMemo(() => {
-		return createTimeout();
-	}, []);
-	useEffect(() => {
-		return timeout.stop;
-	}, []);
+	const timeout = useMemo(createTimeout, []);
+	useEffect(() => timeout.stop, []);
 	return timeout;
 };

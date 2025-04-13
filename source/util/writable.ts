@@ -73,8 +73,8 @@ export const writable = <T>(
 	let dirty = false;
 
 	const emitter = eventEmitter<T>(() => {
-		start?.(update, get);
 		dirty = true;
+		return start?.(update, get);
 	});
 
 	const get = (): T => {
@@ -107,20 +107,19 @@ export const writable = <T>(
 			});
 		});
 	const snapshot = () => {
-		if (!dirty) start?.(update, get);
-		return currentValue;
+		return dirty ? currentValue : get();
 	};
 
 	return {
 		extend(plugin) {
 			return extendImpl(this, plugin);
 		},
-		get,
-		update,
 		subscribe,
-		when,
-		emitter,
+		get,
 		snapshot,
+		when,
+		update,
+		emitter,
 		Type: true as T,
 	};
 };
@@ -253,10 +252,10 @@ export namespace Plugin {
 		observable: T,
 	) {
 		return {
-			set(value: Type) {
-				observable.update(() =>
-					value === undefined ? (nothing as Type) : value,
-				);
+			set(value: Type | Updater<Type>) {
+				if (typeof value === "function")
+					observable.update(value as Updater<Type>);
+				else observable.update(() => (value === undefined ? nothing : value));
 			},
 		};
 	}
